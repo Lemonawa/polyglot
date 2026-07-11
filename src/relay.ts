@@ -46,12 +46,19 @@ export async function handleChat(
     });
   }
 
+  if (body.stream) {
+    return new Response(
+      JSON.stringify({ error: { message: 'streaming is not supported in Phase 1', type: 'streaming_unsupported' } }),
+      { status: 501, headers: { 'content-type': 'application/json' } },
+    );
+  }
+
   const start = Date.now();
   const run = await runChain(chain, (provider) => runner(provider, body));
   const latency = Date.now() - start;
-  const logicalModelId = modelRow as number;
+  const logicalModelId = modelRow!;
 
-  if (run.value) {
+  if (run.outcome.ok && run.value) {
     insertRequestLog(db, {
       logical_model_id: logicalModelId,
       hit_provider_id: run.outcome.provider.id,

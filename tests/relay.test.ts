@@ -67,17 +67,55 @@ test('unknown model returns 404', async () => {
   db.close();
 });
 
-test('all providers fail returns 502 and logs error', async () => {
+test('stream: true returns 501', async () => {
+  const { db, model } = setup();
+  createProvider(db, input({ logical_model_id: model.id, upstream_model: 'A' }));
+  const runner = async () => ({ text: '', usage: { input: 0, output: 0 } });
+  const res = await handleChat(
+    db,
+    { model: 'my-gpt', messages: [{ role: 'user', content: 'hey' }], stream: true },
+    runner,
+  );
+  expect(res.status).toBe(501);
+  const json = (await res.json()) as { error: { type: string } };
+  expect(json.error.type).toBe('streaming_unsupported');
+  db.close();
+});
+
+test('AI SDK statusCode:400 is read (not status) — stops chain, does not try second provider', async () => {
+  const { db, model } = setup();
+  createProvider(db, input({ logical_model_id: model.id, priority: 0, upstream_model: 'A' }));
+  createProvider(db, input({ logical_model_id: model.id, priority: 1, upstream_model: 'B' }));
+  let secondCalled = false;
+  const runner = async (p: Provider) => {
+    if (p.upstream_model === 'A') {
+      // Throw an APICallError-shaped object with statusCode (not status)
+      const e = new Error('bad request') as Error & { statusCode?: number };
+      e.statusCode = 400;
+      throw e;
+    }
+    secondCalled = true;
+    return { text: 'from B', usage: { input: 0, output: 0 } };
+  };
+  const res = await handleChat(db, { model: 'my-gpt', messages: [{ role: 'user', content: 'x' }] }, runner);
+  expect(res.status).toBe(502);
+  expect(secondCalled).toBe(false); // chain did not try second provider
+  const logs = listRequestLogs(db, { logicalModelId: model.id });
+  expect(logs[0].attempts).toBe(1);
+  db.close();
+});
+
+test('AI SDK statusCode:500 is read as fallback — single provider still returns 502', async () => {
   const { db, model } = setup();
   createProvider(db, input({ logical_model_id: model.id, upstream_model: 'A' }));
   const runner = async () => {
-    const e = new Error('boom') as Error & { status?: number };
-    e.status = 500;
+    const e = new Error('server error') as Error & { statusCode?: number };
+    e.statusCode = 500;
     throw e;
   };
   const res = await handleChat(db, { model: 'my-gpt', messages: [{ role: 'user', content: 'x' }] }, runner);
   expect(res.status).toBe(502);
   const logs = listRequestLogs(db, { logicalModelId: model.id });
-  expect(logs[0].status).toBe('error');
+  expect(logs[0].attempts).toBe(1);
   db.close();
 });

@@ -1,4 +1,5 @@
 import type { Provider } from '../types.js';
+import { extractStatus } from '../outbound/errors.js';
 
 export interface AttemptOutcome {
   provider: Provider;
@@ -43,8 +44,8 @@ export async function runChain<T>(
       const value = await attempt(provider);
       return { value, outcome: { provider, ok: true }, attempts };
     } catch (err) {
-      const e = err as Error & { status?: number };
-      lastOutcome = { provider, ok: false, status: e.status, error: e };
+      const e = err as Error;
+      lastOutcome = { provider, ok: false, status: extractStatus(e), error: e };
       if (!shouldFallback(lastOutcome)) break;
     }
   }

@@ -65,9 +65,11 @@ export function updateProvider(
   id: number,
   patch: Partial<ProviderInput>,
 ): void {
+  const ALLOWED = new Set<string>(['priority','upstream_format','base_url','api_key','upstream_model','models_dev_id','fallback_status_codes','enabled']);
   const fields: string[] = [];
   const values: unknown[] = [];
   for (const [key, value] of Object.entries(patch)) {
+    if (!ALLOWED.has(key)) continue;
     fields.push(`${key} = ?`);
     if (key === 'fallback_status_codes') values.push(JSON.stringify(value));
     else if (key === 'enabled') values.push(value ? 1 : 0);

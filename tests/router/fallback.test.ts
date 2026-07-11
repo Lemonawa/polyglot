@@ -61,6 +61,21 @@ test('runChain: stops on non-fallback error (plain 400)', async () => {
   expect(bCalled).toBe(false);
 });
 
+test('runChain: exhaust all providers, all fail with fallback errors', async () => {
+  const a = provider({ id: 1, upstream_model: 'a' });
+  const b = provider({ id: 2, upstream_model: 'b' });
+  const c = provider({ id: 3, upstream_model: 'c' });
+  const res = await runChain([a, b, c], async (p) => {
+    const e = new Error(`fail-${p.upstream_model}`) as Error & { status?: number };
+    e.status = 500;
+    throw e;
+  });
+  expect(res.attempts).toBe(3);
+  expect(res.outcome.ok).toBe(false);
+  expect(res.outcome.status).toBe(500);
+  expect(res.value).toBeUndefined();
+});
+
 test('runChain: empty chain returns zero attempts', async () => {
   const res = await runChain([], async () => 'x');
   expect(res.attempts).toBe(0);

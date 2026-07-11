@@ -27,12 +27,15 @@ export async function runChain<T>(
   chain: Provider[],
   attempt: (p: Provider) => Promise<T>,
 ): Promise<RunResult<T>> {
+  if (chain.length === 0) {
+    return {
+      outcome: { provider: undefined as unknown as Provider, ok: false, error: new Error('empty chain') },
+      attempts: 0,
+    };
+  }
+
   let attempts = 0;
-  let lastOutcome: AttemptOutcome = {
-    provider: chain[0] as Provider,
-    ok: false,
-    error: new Error('empty chain'),
-  };
+  let lastOutcome!: AttemptOutcome;
 
   for (const provider of chain) {
     attempts++;

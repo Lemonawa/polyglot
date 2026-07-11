@@ -23,3 +23,36 @@ export function serializeResponsesJson(model: string, result: CanonicalResult): 
     },
   };
 }
+
+function sseEvent(event: string, data: object): string {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+export function serializeResponsesSSE(
+  model: string,
+  deltas: AsyncIterable<string>,
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const id = `resp-${Date.now()}`;
+  return new ReadableStream({
+    async start(controller) {
+      controller.enqueue(
+        encoder.encode(sseEvent('response.created', { type: 'response.created', response: { id, model, status: 'in_progress' } })),
+      );
+      let full = '';
+      for await (const delta of deltas) {
+        full += delta;
+        controller.enqueue(
+          encoder.encode(sseEvent('response.output_text.delta', { type: 'response.output_text.delta', delta })),
+        );
+      }
+      controller.enqueue(
+        encoder.encode(sseEvent('response.completed', {
+          type: 'response.completed',
+          response: { id, model, status: 'completed', output_text: full },
+        })),
+      );
+      controller.close();
+    },
+  });
+}

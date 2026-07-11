@@ -25,7 +25,7 @@ test('maps canonical fields to AI SDK call options', () => {
   expect(opts.maxOutputTokens).toBe(128);
   expect(opts.topP).toBe(0.9);
   expect(opts.stopSequences).toEqual(['END']);
-  expect(opts.reasoning).toEqual({ effort: 'high' });
+  expect(opts.reasoning).toBe('high');
   expect(opts.messages).toEqual([{ role: 'user', content: 'hi' }]);
 });
 

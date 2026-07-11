@@ -2,6 +2,7 @@ import {
   generateText,
   streamText,
   type LanguageModel,
+  type LanguageModelV4CallOptions,
   type ModelMessage,
 } from 'ai';
 import type { CanonicalRequest, CanonicalResult } from '../canonical/types.js';
@@ -19,14 +20,14 @@ export interface CallOptions {
   temperature?: number;
   topP?: number;
   stopSequences?: string[];
-  reasoning?: { effort?: string; budget_tokens?: number };
+  reasoning?: LanguageModelV4CallOptions['reasoning'];
 }
 
 export function buildCallOptions(
   model: LanguageModel,
   req: CanonicalRequest,
 ): CallOptions {
-  return {
+  const opts: CallOptions = {
     model,
     instructions: req.system,
     messages: req.messages,
@@ -34,8 +35,14 @@ export function buildCallOptions(
     temperature: req.temperature,
     topP: req.top_p,
     stopSequences: req.stop,
-    reasoning: req.reasoning,
   };
+
+  // Map canonical reasoning.effort → AI SDK reasoning string
+  if (req.reasoning?.effort) {
+    opts.reasoning = req.reasoning.effort as LanguageModelV4CallOptions['reasoning'];
+  }
+
+  return opts;
 }
 
 // ---------------------------------------------------------------------------

@@ -83,7 +83,7 @@ export async function handleRequest(
   const run = await runChain(chain, (provider) => execute(buildModel(provider), req));
   const latency = Date.now() - start;
 
-  if (run.value) {
+  if (run.outcome.ok && run.value) {
     insertRequestLog(db, {
       logical_model_id: logicalModelId, hit_provider_id: run.outcome.provider.id,
       client_format: clientFormat, upstream_format: run.outcome.provider.upstream_format,

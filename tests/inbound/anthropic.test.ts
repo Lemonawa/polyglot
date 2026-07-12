@@ -128,3 +128,132 @@ test('non-text system blocks are filtered out', () => {
   });
   expect(req.system).toBe('be\nkind');
 });
+
+test('assistant tool_use blocks become ToolCallParts', () => {
+  const req = parseAnthropic({
+    model: 'm',
+    max_tokens: 100,
+    messages: [
+      { role: 'user', content: 'weather?' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Let me check.' },
+          { type: 'tool_use', id: 'tu_1', name: 'get_weather', input: { loc: 'NYC' } },
+        ],
+      },
+    ],
+  });
+
+  expect(req.messages).toHaveLength(2);
+  // user message unchanged
+  expect(req.messages[0]).toEqual({ role: 'user', content: 'weather?' });
+
+  const assistantMsg = req.messages[1];
+  expect(assistantMsg.role).toBe('assistant');
+  expect(Array.isArray(assistantMsg.content)).toBe(true);
+  const parts = assistantMsg.content as Array<Record<string, unknown>>;
+  expect(parts).toHaveLength(2);
+  // Text part
+  expect(parts[0]).toMatchObject({ type: 'text', text: 'Let me check.' });
+  // Tool call part
+  expect(parts[1]).toMatchObject({
+    type: 'tool-call',
+    toolCallId: 'tu_1',
+    toolName: 'get_weather',
+    input: { loc: 'NYC' },
+  });
+});
+
+test('user tool_result blocks become ToolModelMessage with ToolResultParts', () => {
+  const req = parseAnthropic({
+    model: 'm',
+    max_tokens: 100,
+    messages: [
+      { role: 'user', content: 'weather?' },
+      {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 'tu_1', name: 'get_weather', input: { loc: 'NYC' } },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'tu_1', content: '72°F' },
+        ],
+      },
+    ],
+  });
+
+  expect(req.messages).toHaveLength(3);
+  const toolMsg = req.messages[2];
+  expect(toolMsg.role).toBe('tool');
+  expect(Array.isArray(toolMsg.content)).toBe(true);
+  const parts = toolMsg.content as Array<Record<string, unknown>>;
+  expect(parts).toHaveLength(1);
+  expect(parts[0]).toMatchObject({
+    type: 'tool-result',
+    toolCallId: 'tu_1',
+    toolName: 'get_weather',
+    output: { type: 'text', value: '72°F' },
+  });
+});
+
+test('tool_result with unknown tool_use_id falls back', () => {
+  const req = parseAnthropic({
+    model: 'm',
+    max_tokens: 100,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'unknown_id', content: 'result' },
+        ],
+      },
+    ],
+  });
+
+  const toolMsg = req.messages[0];
+  expect(toolMsg.role).toBe('tool');
+  const parts = toolMsg.content as Array<Record<string, unknown>>;
+  expect(parts[0].toolCallId).toBe('unknown_id');
+  expect(typeof parts[0].toolName).toBe('string');
+});
+
+test('tool_result with content block array joins text', () => {
+  const req = parseAnthropic({
+    model: 'm',
+    max_tokens: 100,
+    messages: [
+      {
+        role: 'assistant',
+        content: [
+          { type: 'tool_use', id: 'tu_1', name: 'get_weather', input: { loc: 'NYC' } },
+        ],
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tu_1',
+            content: [
+              { type: 'text', text: '72' },
+              { type: 'text', text: '°F' },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  const toolMsg = req.messages[1];
+  const parts = toolMsg.content as Array<Record<string, unknown>>;
+  expect(parts[0]).toMatchObject({
+    type: 'tool-result',
+    toolCallId: 'tu_1',
+    toolName: 'get_weather',
+    output: { type: 'text', value: '72\n°F' },
+  });
+});

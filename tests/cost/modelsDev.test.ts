@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import { migrate, openDb } from '../../src/store/db.js';
 import { getCachedData, refreshModelsDev } from '../../src/cost/modelsDev.js';
+import { saveModelsDevCache } from '../../src/store/modelsDevCache.js';
 
 const sample = {
   anthropic: {
@@ -27,6 +28,14 @@ test('refresh stores parsed models.dev data', async () => {
 test('getCachedData returns null when empty', () => {
   const db = openDb(':memory:');
   migrate(db);
+  expect(getCachedData(db)).toBeNull();
+  db.close();
+});
+
+test('getCachedData returns null for corrupt JSON instead of crashing', () => {
+  const db = openDb(':memory:');
+  migrate(db);
+  saveModelsDevCache(db, 'not json{', new Date().toISOString());
   expect(getCachedData(db)).toBeNull();
   db.close();
 });

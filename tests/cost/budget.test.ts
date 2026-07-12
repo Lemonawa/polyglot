@@ -1,8 +1,25 @@
-import { expect, test } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 import { migrate, openDb } from '../../src/store/db.js';
 import { createBudget } from '../../src/store/budgets.js';
 import { insertRequestLog } from '../../src/store/requestLogs.js';
-import { checkBudgets } from '../../src/cost/budget.js';
+import { checkBudgets, periodStart } from '../../src/cost/budget.js';
+
+describe('periodStart', () => {
+  it('day at noon UTC returns that day 00:00:00.000Z', () => {
+    const date = new Date(Date.UTC(2026, 6, 11, 12, 30, 0));
+    expect(periodStart('day', date)).toBe('2026-07-11T00:00:00.000Z');
+  });
+
+  it('day at Jan 31 23:00 UTC returns Jan 31 00:00:00.000Z', () => {
+    const date = new Date(Date.UTC(2026, 0, 31, 23, 0, 0));
+    expect(periodStart('day', date)).toBe('2026-01-31T00:00:00.000Z');
+  });
+
+  it('month returns first-of-month 00:00:00.000Z', () => {
+    const date = new Date(Date.UTC(2026, 6, 11, 12, 30, 0));
+    expect(periodStart('month', date)).toBe('2026-07-01T00:00:00.000Z');
+  });
+});
 
 function logCost(db: ReturnType<typeof openDb>, modelId: number, cost: number) {
   insertRequestLog(db, {

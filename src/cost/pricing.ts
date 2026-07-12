@@ -16,6 +16,9 @@ interface RawProvider {
 }
 
 function toUnitPrice(cost: RawCost | undefined): UnitPrice {
+  // NOTE: models.dev `cost.tiers` (e.g. gemini-2.5-pro 2x pricing above 200K context)
+  // are not handled - we use the base price only. High-context requests to tiered
+  // models will undercount cost. Plan defers precise tiered pricing; see spec §7.
   return {
     input: cost?.input ?? 0,
     output: cost?.output ?? 0,

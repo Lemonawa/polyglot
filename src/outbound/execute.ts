@@ -5,7 +5,7 @@ import {
   type LanguageModelCallOptions,
   type ModelMessage,
 } from 'ai';
-import type { CanonicalRequest, CanonicalResult } from '../canonical/types.js';
+import type { CanonicalRequest, CanonicalResult, CanonicalToolCall } from '../canonical/types.js';
 import type { TokenUsage } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -102,7 +102,7 @@ export async function execute(
 
   return {
     text: result.text,
-    tool_calls: result.toolCalls ?? [],
+    tool_calls: (result.toolCalls ?? []) as unknown as CanonicalToolCall[],
     finish_reason: result.finishReason ?? 'stop',
     usage: toUsage(result.usage as AiUsage, result.providerMetadata),
     raw_provider_metadata: result.providerMetadata,
@@ -135,7 +135,7 @@ export function streamExecute(
 
     return {
       text,
-      tool_calls: toolCalls ?? [],
+      tool_calls: (toolCalls ?? []) as unknown as CanonicalToolCall[],
       finish_reason: finishReason ?? 'stop',
       usage: toUsage(usage as AiUsage, meta),
       raw_provider_metadata: meta,

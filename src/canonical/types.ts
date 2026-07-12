@@ -21,9 +21,15 @@ export interface CanonicalRequest {
   extra?: Record<string, unknown>; // 无法映射的字段原样透传
 }
 
+export interface CanonicalToolCall {
+  toolCallId: string;
+  toolName: string;
+  args: string; // JSON string
+}
+
 export interface CanonicalResult {
   text: string;
-  tool_calls: unknown[];
+  tool_calls: CanonicalToolCall[];
   finish_reason: string;
   usage: TokenUsage;
   raw_provider_metadata?: unknown;

@@ -13,6 +13,10 @@ import {
   updateProvider,
   type ProviderInput,
 } from '../store/providers.js';
+import { createBudget, deleteBudget, listBudgets, type BudgetInput } from '../store/budgets.js';
+import { listRequestLogs } from '../store/requestLogs.js';
+import { checkBudgets } from '../cost/budget.js';
+import { refreshModelsDev } from '../cost/modelsDev.js';
 
 export function createAdminRoutes(db: Database.Database, token: string): Hono {
   const app = new Hono();
@@ -52,6 +56,45 @@ export function createAdminRoutes(db: Database.Database, token: string): Hono {
   app.delete('/providers/:id', (c) => {
     deleteProvider(db, Number(c.req.param('id')));
     return c.body(null, 204);
+  });
+
+  app.get('/budgets', (c) => c.json({ budgets: listBudgets(db) }));
+
+  app.post('/budgets', async (c) => {
+    const body = (await c.req.json()) as BudgetInput;
+    const budget = createBudget(db, body);
+    return c.json({ budget }, 201);
+  });
+
+  app.delete('/budgets/:id', (c) => {
+    deleteBudget(db, Number(c.req.param('id')));
+    return c.body(null, 204);
+  });
+
+  app.get('/logs', (c) => {
+    const model = c.req.query('model');
+    const limit = c.req.query('limit');
+    const offset = c.req.query('offset');
+    const logs = listRequestLogs(db, {
+      logicalModelId: model ? Number(model) : undefined,
+      limit: limit ? Number(limit) : undefined,
+      offset: offset ? Number(offset) : undefined,
+    });
+    return c.json({ logs });
+  });
+
+  app.get('/models/:id/budget-status', (c) => {
+    const statuses = checkBudgets(db, Number(c.req.param('id')));
+    return c.json({ statuses });
+  });
+
+  app.post('/models-dev/refresh', async (c) => {
+    try {
+      await refreshModelsDev(db);
+      return c.json({ ok: true });
+    } catch (err) {
+      return c.json({ error: { message: (err as Error).message } }, 502);
+    }
   });
 
   return app;

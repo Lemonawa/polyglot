@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Polyglot Admin</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 960px; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ddd; padding: .4rem .6rem; text-align: left; font-size: 14px; }
+    input, select, button { padding: .3rem .5rem; margin: .2rem; }
+    h2 { margin-top: 2rem; }
+    .muted { color: #888; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Polyglot</h1>
+  <p class="muted">个人 AI 转发器管理台。所有操作需要 Admin Token。</p>
+  <div>
+    <input id="token" type="password" placeholder="Admin Token" size="32" />
+    <button onclick="saveToken()">保存 Token</button>
+    <button onclick="refreshPrices()">刷新 models.dev 价目</button>
+  </div>
+
+  <h2>逻辑模型</h2>
+  <input id="model-name" placeholder="模型名，如 my-sonnet" />
+  <button onclick="addModel()">新增模型</button>
+  <table id="models"><thead><tr><th>id</th><th>name</th><th>操作</th></tr></thead><tbody></tbody></table>
+
+  <h2>Provider 链<span class="muted" id="chain-for"></span></h2>
+  <table id="providers"><thead><tr><th>priority</th><th>format</th><th>base_url</th><th>model</th><th>models_dev_id</th><th>enabled</th><th>操作</th></tr></thead><tbody></tbody></table>
+
+  <h2>请求日志</h2>
+  <table id="logs"><thead><tr><th>time</th><th>model_id</th><th>hit</th><th>attempts</th><th>tokens(in/out)</th><th>cost($)</th><th>ms</th><th>status</th></tr></thead><tbody></tbody></table>
+
+  <script>
+    const tok = () => localStorage.getItem('polyglot_token') || '';
+    const H = () => ({ Authorization: 'Bearer ' + tok(), 'content-type': 'application/json' });
+    function saveToken() { localStorage.setItem('polyglot_token', document.getElementById('token').value); loadModels(); loadLogs(); }
+    async function api(path, opts) { return fetch('/admin/api' + path, { ...opts, headers: { ...H(), ...(opts && opts.headers) } }); }
+
+    async function loadModels() {
+      const r = await api('/models'); if (!r.ok) return;
+      const { models } = await r.json();
+      const tb = document.querySelector('#models tbody'); tb.innerHTML = '';
+      for (const m of models) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${m.id}</td><td>${m.name}</td><td><button>查看链</button> <button>删除</button></td>`;
+        tr.querySelectorAll('button')[0].onclick = () => loadProviders(m);
+        tr.querySelectorAll('button')[1].onclick = async () => { await api('/models/' + m.id, { method: 'DELETE' }); loadModels(); };
+        tb.appendChild(tr);
+      }
+    }
+    async function addModel() {
+      await api('/models', { method: 'POST', body: JSON.stringify({ name: document.getElementById('model-name').value }) });
+      loadModels();
+    }
+    async function loadProviders(m) {
+      document.getElementById('chain-for').textContent = ' — ' + m.name;
+      const r = await api('/models/' + m.id + '/providers'); const { providers } = await r.json();
+      const tb = document.querySelector('#providers tbody'); tb.innerHTML = '';
+      for (const p of providers) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${p.priority}</td><td>${p.upstream_format}</td><td>${p.base_url}</td><td>${p.upstream_model}</td><td>${p.models_dev_id||''}</td><td>${p.enabled}</td><td><button>删除</button></td>`;
+        tr.querySelector('button').onclick = async () => { await api('/providers/' + p.id, { method: 'DELETE' }); loadProviders(m); };
+        tb.appendChild(tr);
+      }
+    }
+    async function loadLogs() {
+      const r = await api('/logs?limit=50'); if (!r.ok) return;
+      const { logs } = await r.json();
+      const tb = document.querySelector('#logs tbody'); tb.innerHTML = '';
+      for (const l of logs) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${l.created_at}</td><td>${l.logical_model_id}</td><td>${l.hit_provider_id||''}</td><td>${l.attempts}</td><td>${l.input_tokens}/${l.output_tokens}</td><td>${l.cost_usd.toFixed(6)}</td><td>${l.latency_ms}</td><td>${l.status}</td>`;
+        tb.appendChild(tr);
+      }
+    }
+    async function refreshPrices() { const r = await api('/models-dev/refresh', { method: 'POST' }); alert(r.ok ? '价目已刷新' : '刷新失败'); }
+    document.getElementById('token').value = tok();
+    if (tok()) { loadModels(); loadLogs(); }
+  </script>
+</body>
+</html>

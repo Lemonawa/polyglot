@@ -3,7 +3,7 @@ import { migrate, openDb } from '../src/store/db.js';
 import { createLogicalModel } from '../src/store/logicalModels.js';
 import { createProvider, type ProviderInput } from '../src/store/providers.js';
 import { handleRequest, type ProviderRunner } from '../src/convert.js';
-import type { Provider } from '../src/types.js';
+import type { CanonicalResult } from '../src/canonical/types.js';
 
 function input(over: Partial<ProviderInput>): ProviderInput {
   return {
@@ -20,12 +20,20 @@ function setup() {
   return { db, model };
 }
 
-/** Build a ProviderRunner from a simple execute function (stream throws). */
-function runnerFrom(execute: (p: Provider, req: unknown) => Promise<{ text: string; usage: { input: number; output: number } }>): ProviderRunner {
+function okResult(text: string, inputTokens = 0, outputTokens = 0): CanonicalResult {
   return {
-    execute: execute as ProviderRunner['execute'],
-    stream: () => { throw new Error('stream not implemented in test'); },
+    text,
+    tool_calls: [],
+    finish_reason: 'stop',
+    usage: { input_tokens: inputTokens, output_tokens: outputTokens, cache_read_tokens: 0, cache_write_tokens: 0 },
   };
+}
+
+function makeRunner(execute: (p: Parameters<ProviderRunner['execute']>[0]) => Promise<CanonicalResult>): ProviderRunner {
+  return {
+    execute,
+    stream: () => { throw new Error('stream not used in test'); },
+  } as ProviderRunner;
 }
 
 test('successful chat completion returns 200', async () => {
@@ -34,7 +42,7 @@ test('successful chat completion returns 200', async () => {
 
   const res = await handleRequest(db, 'chat', {
     model: 'my-gpt', messages: [{ role: 'user', content: 'hey' }],
-  }, runnerFrom(async () => ({ text: 'hi from A', usage: { input: 3, output: 4 } })));
+  }, makeRunner(async () => okResult('hi from A', 3, 4)));
   expect(res.status).toBe(200);
   const json = (await res.json()) as { choices: { message: { content: string } }[] };
   expect(json.choices[0].message.content).toBe('hi from A');
@@ -44,7 +52,7 @@ test('successful chat completion returns 200', async () => {
 test('unknown model returns 404', async () => {
   const { db } = setup();
   const res = await handleRequest(db, 'chat', { model: 'ghost', messages: [] },
-    runnerFrom(async () => ({ text: '', usage: { input: 0, output: 0 } })));
+    makeRunner(async () => okResult('')));
   expect(res.status).toBe(404);
   db.close();
 });
@@ -56,13 +64,13 @@ test('falls back to second provider on hard failure', async () => {
 
   const res = await handleRequest(db, 'chat', {
     model: 'my-gpt', messages: [{ role: 'user', content: 'x' }],
-  }, runnerFrom(async (p: Provider) => {
+  }, makeRunner(async (p) => {
     if (p.upstream_model === 'A') {
       const e = new Error('down') as Error & { status?: number };
       e.status = 503;
       throw e;
     }
-    return { text: 'from B', usage: { input: 1, output: 1 } };
+    return okResult('from B', 1, 1);
   }));
   expect(res.status).toBe(200);
   const json = (await res.json()) as { choices: { message: { content: string } }[] };
@@ -76,7 +84,7 @@ test('all providers fail returns 502', async () => {
 
   const res = await handleRequest(db, 'chat', {
     model: 'my-gpt', messages: [{ role: 'user', content: 'x' }],
-  }, runnerFrom(async () => {
+  }, makeRunner(async () => {
     const e = new Error('server error') as Error & { statusCode?: number };
     e.statusCode = 500;
     throw e;

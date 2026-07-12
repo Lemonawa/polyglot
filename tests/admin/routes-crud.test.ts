@@ -25,11 +25,14 @@ test('create model, list, add provider, list providers', async () => {
     body: JSON.stringify({ priority: 0, upstream_format: 'chat', base_url: 'https://x/v1', api_key: 'k', upstream_model: 'gpt-4o', models_dev_id: null, fallback_status_codes: [], enabled: true }),
   });
   expect(addP.status).toBe(201);
-  const { provider } = (await addP.json()) as { provider: { id: number; logical_model_id: number } };
+  const { provider } = (await addP.json()) as { provider: { id: number; logical_model_id: number; api_key?: string } };
   expect(provider.logical_model_id).toBe(model.id);
+  expect(provider.api_key).toBeUndefined();
 
   const plist = await api.request(`/models/${model.id}/providers`, { headers: AUTH });
-  expect(((await plist.json()) as { providers: unknown[] }).providers.length).toBe(1);
+  const plistBody = (await plist.json()) as { providers: { api_key?: string }[] };
+  expect(plistBody.providers.length).toBe(1);
+  expect(plistBody.providers[0].api_key).toBeUndefined();
 });
 
 test('patch and delete provider', async () => {

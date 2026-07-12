@@ -3,8 +3,10 @@ import { migrate, openDb } from '../src/store/db.js';
 import { createLogicalModel } from '../src/store/logicalModels.js';
 import { createProvider, type ProviderInput } from '../src/store/providers.js';
 import { createBudget } from '../src/store/budgets.js';
-import { insertRequestLog } from '../src/store/requestLogs.js';
-import { handleRequest } from '../src/convert.js';
+import { insertRequestLog, listRequestLogs } from '../src/store/requestLogs.js';
+import { handleRequest, type ProviderRunner } from '../src/convert.js';
+import type { CanonicalResult } from '../src/canonical/types.js';
+import type { StreamHandle } from '../src/outbound/execute.js';
 
 function input(over: Partial<ProviderInput>): ProviderInput {
   return { logical_model_id: 1, priority: 0, upstream_format: 'chat', base_url: 'x', api_key: 'k', upstream_model: 'gpt-4o', models_dev_id: null, fallback_status_codes: [], enabled: true, ...over };
@@ -23,24 +25,91 @@ test('blocking budget over limit returns 402 before calling upstream', async () 
   db.close();
 });
 
-test('successful non-streaming request records cost from models.dev price', async () => {
+test('non-streaming cost: fake runner records cost_usd from models.dev price', async () => {
   const { refreshModelsDev } = await import('../src/cost/modelsDev.js');
-  const { listRequestLogs } = await import('../src/store/requestLogs.js');
   const sample = { openai: { id: 'openai', models: { 'gpt-4o': { cost: { input: 2.5, output: 10, cache_read: 1.25, cache_write: 0 } } } } };
   const fakeFetch = (async () => new Response(JSON.stringify(sample), { status: 200 })) as unknown as typeof fetch;
   const db = openDb(':memory:');
   migrate(db);
-  await refreshModelsDev(db, fakeFetch, () => '2026-07-11T00:00:00.000Z');
+  await refreshModelsDev(db, fakeFetch, () => '2026-07-12T00:00:00.000Z');
   const m = createLogicalModel(db, 'my-gpt');
   createProvider(db, input({ logical_model_id: m.id, upstream_model: 'gpt-4o', models_dev_id: 'openai/gpt-4o' }));
-  // inject a runner that returns a known usage (1000 input, 500 output)
-  const { handleRequest } = await import('../src/convert.js');
-  // handleRequest uses the real buildModel+execute by default; to avoid network, call the chat relay's handleChat instead is wrong here.
-  // Instead, verify costForProvider path by calling handleRequest with a stubbed upstream is not directly possible (handleRequest has no runner param).
-  // So verify via the cost functions directly that a provider with models_dev_id computes non-zero cost for known usage:
-  const { costForProvider } = await import('../src/cost/apply.js');
-  const cost = costForProvider(db, { id: 1, logical_model_id: m.id, priority: 0, upstream_format: 'chat', base_url: 'x', api_key: 'k', upstream_model: 'gpt-4o', models_dev_id: 'openai/gpt-4o', fallback_status_codes: [], enabled: true }, { input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0 });
-  // 1000 @ 2.5/1M = 0.0025; 500 @ 10/1M = 0.005; total 0.0075
-  expect(cost).toBeCloseTo(0.0075, 10);
+
+  const fakeRunner: ProviderRunner = {
+    execute: async (_provider, _req) => ({
+      text: 'hello',
+      tool_calls: [],
+      finish_reason: 'stop',
+      usage: { input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0 },
+    }),
+    stream: () => {
+      throw new Error('not used');
+    },
+  };
+
+  const res = await handleRequest(db, 'chat', { model: 'my-gpt', messages: [{ role: 'user', content: 'hi' }] }, fakeRunner);
+  expect(res.status).toBe(200);
+
+  const logs = listRequestLogs(db, { logicalModelId: m.id });
+  expect(logs.length).toBe(1);
+  expect(logs[0].cost_usd).toBeCloseTo(0.0075, 10);
+  expect(logs[0].cost_usd).not.toBe(0);
+  expect(logs[0].input_tokens).toBe(1000);
+  expect(logs[0].output_tokens).toBe(500);
+  expect(logs[0].status).toBe('success');
+  db.close();
+});
+
+test('streaming cost: fake runner records cost_usd from models.dev price', async () => {
+  const { refreshModelsDev } = await import('../src/cost/modelsDev.js');
+  const sample = { openai: { id: 'openai', models: { 'gpt-4o': { cost: { input: 2.5, output: 10, cache_read: 1.25, cache_write: 0 } } } } };
+  const fakeFetch = (async () => new Response(JSON.stringify(sample), { status: 200 })) as unknown as typeof fetch;
+  const db = openDb(':memory:');
+  migrate(db);
+  await refreshModelsDev(db, fakeFetch, () => '2026-07-12T00:00:00.000Z');
+  const m = createLogicalModel(db, 'my-gpt');
+  createProvider(db, input({ logical_model_id: m.id, upstream_model: 'gpt-4o', models_dev_id: 'openai/gpt-4o' }));
+
+  const fakeRunner: ProviderRunner = {
+    execute: () => {
+      throw new Error('not used');
+    },
+    stream: (_provider, _req) => {
+      let done = false;
+      const stream: AsyncIterable<string> = {
+        [Symbol.asyncIterator]: () => ({
+          next: () => {
+            if (!done) { done = true; return Promise.resolve({ value: 'Hi there', done: false }); }
+            return Promise.resolve({ value: undefined, done: true });
+          },
+        }),
+      };
+      const resultPromise: Promise<CanonicalResult> = Promise.resolve({
+        text: 'Hi there',
+        tool_calls: [],
+        finish_reason: 'stop',
+        usage: { input_tokens: 1000, output_tokens: 500, cache_read_tokens: 0, cache_write_tokens: 0 },
+      });
+      return { stream, resultPromise } satisfies StreamHandle;
+    },
+  };
+
+  const res = await handleRequest(db, 'chat', { model: 'my-gpt', messages: [{ role: 'user', content: 'hi' }], stream: true }, fakeRunner);
+  expect(res.status).toBe(200);
+
+  // Drain SSE response body
+  const reader = res.body!.getReader();
+  while (!(await reader.read()).done) { /* drain */ }
+
+  // Streaming log is fire-and-forget via .then — allow it to settle
+  await new Promise((r) => setTimeout(r, 50));
+
+  const logs = listRequestLogs(db, { logicalModelId: m.id });
+  expect(logs.length).toBe(1);
+  expect(logs[0].cost_usd).toBeCloseTo(0.0075, 10);
+  expect(logs[0].cost_usd).not.toBe(0);
+  expect(logs[0].input_tokens).toBe(1000);
+  expect(logs[0].output_tokens).toBe(500);
+  expect(logs[0].status).toBe('success');
   db.close();
 });

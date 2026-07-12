@@ -4,7 +4,7 @@ import { parseAnthropic } from './inbound/anthropic.js';
 import { parseChat } from './inbound/chat.js';
 import { parseResponses } from './inbound/responses.js';
 import { buildModel } from './outbound/model.js';
-import { execute, streamExecute } from './outbound/execute.js';
+import { execute, streamExecute, type StreamHandle } from './outbound/execute.js';
 import { serializeAnthropicJson, serializeAnthropicSSE } from './outbound/serializeAnthropic.js';
 import { serializeChatJson, serializeChatSSE } from './outbound/serializeChat.js';
 import { serializeResponsesJson, serializeResponsesSSE } from './outbound/serializeResponses.js';
@@ -13,7 +13,25 @@ import { resolveChain } from './router/resolve.js';
 import { insertRequestLog } from './store/requestLogs.js';
 import { checkBudgets } from './cost/budget.js';
 import { blockingBudget, costForProvider } from './cost/apply.js';
-import type { WireFormat } from './types.js';
+import type { Provider, WireFormat } from './types.js';
+
+// ---------------------------------------------------------------------------
+// ProviderRunner injection seam (mirrors handleChat's pattern)
+// ---------------------------------------------------------------------------
+
+export interface ProviderRunner {
+  execute(provider: Provider, req: CanonicalRequest): Promise<CanonicalResult>;
+  stream(provider: Provider, req: CanonicalRequest): StreamHandle;
+}
+
+const defaultRunner: ProviderRunner = {
+  execute: (provider, req) => execute(buildModel(provider), req),
+  stream: (provider, req) => streamExecute(buildModel(provider), req),
+};
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 export function parseInbound(format: WireFormat, body: Record<string, unknown>): CanonicalRequest {
   if (format === 'chat') return parseChat(body);
@@ -41,6 +59,7 @@ export async function handleRequest(
   db: Database.Database,
   clientFormat: WireFormat,
   body: Record<string, unknown>,
+  runner: ProviderRunner = defaultRunner,
 ): Promise<Response> {
   const req = parseInbound(clientFormat, body);
   const chain = resolveChain(db, req.model);
@@ -70,7 +89,7 @@ export async function handleRequest(
   // Streaming: only first provider; no fallback after stream starts.
   if (req.stream) {
     const provider = chain[0];
-    const handle = streamExecute(buildModel(provider), req);
+    const handle = runner.stream(provider, req);
     const sse = serializeSSE(clientFormat, req.model, handle.stream);
     handle.resultPromise
       .then((result) => {
@@ -105,7 +124,7 @@ export async function handleRequest(
   }
 
   // Non-streaming: runChain with fallback.
-  const run = await runChain(chain, (provider) => execute(buildModel(provider), req));
+  const run = await runChain(chain, (provider) => runner.execute(provider, req));
   const latency = Date.now() - start;
 
   if (run.outcome.ok && run.value) {

@@ -2,6 +2,22 @@ import type { CanonicalResult } from '../canonical/types.js';
 
 export function serializeResponsesJson(model: string, result: CanonicalResult): object {
   const prompt = result.usage.input_tokens + result.usage.cache_read_tokens;
+  const output: unknown[] = [
+    {
+      type: 'message',
+      role: 'assistant',
+      content: [{ type: 'output_text', text: result.text }],
+    },
+  ];
+  for (const tc of result.tool_calls) {
+    output.push({
+      type: 'function_call',
+      id: tc.toolCallId,
+      name: tc.toolName,
+      arguments: tc.args,
+      status: 'completed',
+    });
+  }
   return {
     id: `resp-${Date.now()}`,
     object: 'response',
@@ -9,13 +25,7 @@ export function serializeResponsesJson(model: string, result: CanonicalResult): 
     model,
     status: 'completed',
     output_text: result.text,
-    output: [
-      {
-        type: 'message',
-        role: 'assistant',
-        content: [{ type: 'output_text', text: result.text }],
-      },
-    ],
+    output,
     usage: {
       input_tokens: prompt,
       output_tokens: result.usage.output_tokens,

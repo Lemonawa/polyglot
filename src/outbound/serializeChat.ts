@@ -2,13 +2,25 @@ import type { CanonicalResult } from '../canonical/types.js';
 
 export function serializeChatJson(model: string, result: CanonicalResult): object {
   const prompt = result.usage.input_tokens + result.usage.cache_read_tokens;
+  const message: { role: string; content: string; tool_calls?: unknown[] } = {
+    role: 'assistant',
+    content: result.text,
+  };
+  const finish_reason = result.tool_calls.length > 0 ? 'tool_calls' : result.finish_reason;
+  if (result.tool_calls.length > 0) {
+    message.tool_calls = result.tool_calls.map(tc => ({
+      id: tc.toolCallId,
+      type: 'function',
+      function: { name: tc.toolName, arguments: tc.args },
+    }));
+  }
   return {
     id: `chatcmpl-${Date.now()}`,
     object: 'chat.completion',
     created: Math.floor(Date.now() / 1000),
     model,
     choices: [
-      { index: 0, message: { role: 'assistant', content: result.text }, finish_reason: result.finish_reason },
+      { index: 0, message, finish_reason },
     ],
     usage: {
       prompt_tokens: prompt,

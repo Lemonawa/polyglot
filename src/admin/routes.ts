@@ -17,6 +17,12 @@ import { createBudget, deleteBudget, listBudgets, type BudgetInput } from '../st
 import { listRequestLogs } from '../store/requestLogs.js';
 import { checkBudgets } from '../cost/budget.js';
 import { refreshModelsDev } from '../cost/modelsDev.js';
+import type { Provider } from '../types.js';
+
+function providerView(p: Provider) {
+  const { api_key: _ignored, ...rest } = p;
+  return rest;
+}
 
 export function createAdminRoutes(db: Database.Database, token: string): Hono {
   const app = new Hono();
@@ -37,14 +43,14 @@ export function createAdminRoutes(db: Database.Database, token: string): Hono {
 
   app.get('/models/:id/providers', (c) => {
     const providers = listProvidersByModelId(db, Number(c.req.param('id')));
-    return c.json({ providers });
+    return c.json({ providers: providers.map(providerView) });
   });
 
   app.post('/models/:id/providers', async (c) => {
     const logical_model_id = Number(c.req.param('id'));
     const body = (await c.req.json()) as Omit<ProviderInput, 'logical_model_id'>;
     const provider = createProvider(db, { ...body, logical_model_id });
-    return c.json({ provider }, 201);
+    return c.json({ provider: providerView(provider) }, 201);
   });
 
   app.patch('/providers/:id', async (c) => {

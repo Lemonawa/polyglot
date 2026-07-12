@@ -1,5 +1,5 @@
-import { expect, test, vi } from 'vitest';
-import { buildCallOptions } from '../../src/outbound/execute.js';
+import { expect, test } from 'vitest';
+import { buildCallOptions, toUsage } from '../../src/outbound/execute.js';
 import type { CanonicalRequest } from '../../src/canonical/types.js';
 
 // ---------------------------------------------------------------------------
@@ -42,4 +42,35 @@ test('omits undefined optional fields', () => {
   expect(opts.topP).toBeUndefined();
   expect(opts.stopSequences).toBeUndefined();
   expect(opts.reasoning).toBeUndefined();
+});
+
+// ---------------------------------------------------------------------------
+// toUsage – token-usage helper
+// ---------------------------------------------------------------------------
+
+test('toUsage reads anthropic cacheCreationInputTokens from providerMetadata', () => {
+  const usage = { inputTokens: 1000, outputTokens: 200 };
+  const meta = { anthropic: { cacheCreationInputTokens: 500 } };
+  const result = toUsage(usage, meta);
+  expect(result.cache_write_tokens).toBe(500);
+});
+
+test('toUsage falls back to anthropic usage.cache_creation_input_tokens', () => {
+  const usage = { inputTokens: 1000, outputTokens: 200 };
+  const meta = { anthropic: { usage: { cache_creation_input_tokens: 300 } } };
+  const result = toUsage(usage, meta);
+  expect(result.cache_write_tokens).toBe(300);
+});
+
+test('toUsage prefers inputTokenDetails.cacheWriteTokens over all metadata', () => {
+  const usage = { inputTokens: 1000, outputTokens: 200, inputTokenDetails: { cacheWriteTokens: 999 } };
+  const meta = { anthropic: { cacheCreationInputTokens: 500 } };
+  const result = toUsage(usage, meta);
+  expect(result.cache_write_tokens).toBe(999);
+});
+
+test('toUsage defaults cache_write_tokens to 0 when no source exists', () => {
+  const usage = { inputTokens: 1000, outputTokens: 200 };
+  const result = toUsage(usage, undefined);
+  expect(result.cache_write_tokens).toBe(0);
 });

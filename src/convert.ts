@@ -57,21 +57,29 @@ export async function handleRequest(
     const sse = serializeSSE(clientFormat, req.model, handle.stream);
     handle.resultPromise
       .then((result) => {
-        insertRequestLog(db, {
-          logical_model_id: logicalModelId, hit_provider_id: provider.id,
-          client_format: clientFormat, upstream_format: provider.upstream_format,
-          input_tokens: result.usage.input_tokens, output_tokens: result.usage.output_tokens,
-          cache_read_tokens: result.usage.cache_read_tokens, cache_write_tokens: result.usage.cache_write_tokens,
-          cost_usd: 0, latency_ms: Date.now() - start, status: 'success', error: null, attempts: 1,
-        });
+        try {
+          insertRequestLog(db, {
+            logical_model_id: logicalModelId, hit_provider_id: provider.id,
+            client_format: clientFormat, upstream_format: provider.upstream_format,
+            input_tokens: result.usage.input_tokens, output_tokens: result.usage.output_tokens,
+            cache_read_tokens: result.usage.cache_read_tokens, cache_write_tokens: result.usage.cache_write_tokens,
+            cost_usd: 0, latency_ms: Date.now() - start, status: 'success', error: null, attempts: 1,
+          });
+        } catch (logErr) {
+          console.error('stream success-log write failed', logErr);
+        }
       })
       .catch((err: Error) => {
-        insertRequestLog(db, {
-          logical_model_id: logicalModelId, hit_provider_id: provider.id,
-          client_format: clientFormat, upstream_format: provider.upstream_format,
-          input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0,
-          cost_usd: 0, latency_ms: Date.now() - start, status: 'error', error: err.message, attempts: 1,
-        });
+        try {
+          insertRequestLog(db, {
+            logical_model_id: logicalModelId, hit_provider_id: provider.id,
+            client_format: clientFormat, upstream_format: provider.upstream_format,
+            input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0,
+            cost_usd: 0, latency_ms: Date.now() - start, status: 'error', error: err.message, attempts: 1,
+          });
+        } catch (logErr) {
+          console.error('stream error-log write failed', logErr, err);
+        }
       });
     return new Response(sse, {
       status: 200,

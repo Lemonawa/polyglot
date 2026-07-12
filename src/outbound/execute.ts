@@ -68,16 +68,18 @@ interface AiUsage {
  * `providerMetadata.openai?.usage?.cacheWriteTokens` for providers that only
  * expose it there (e.g. some OpenAI-compatible endpoints).
  */
-function toUsage(usage: AiUsage, meta: unknown): TokenUsage {
+export function toUsage(usage: AiUsage, meta: unknown): TokenUsage {
   const cacheRead =
     usage.inputTokenDetails?.cacheReadTokens ?? 0;
   const cacheWrite =
     usage.inputTokenDetails?.cacheWriteTokens ??
     (
       meta as
-        | { openai?: { usage?: { cacheWriteTokens?: number } } }
+        | { anthropic?: { cacheCreationInputTokens?: number; usage?: { cache_creation_input_tokens?: number } }; openai?: { usage?: { cacheWriteTokens?: number } } }
         | undefined
-    )?.openai?.usage?.cacheWriteTokens ??
+    )?.anthropic?.cacheCreationInputTokens ??
+    (meta as { anthropic?: { usage?: { cache_creation_input_tokens?: number } } } | undefined)?.anthropic?.usage?.cache_creation_input_tokens ??
+    (meta as { openai?: { usage?: { cacheWriteTokens?: number } } } | undefined)?.openai?.usage?.cacheWriteTokens ??
     0;
 
   return {

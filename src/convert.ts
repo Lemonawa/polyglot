@@ -11,6 +11,8 @@ import { serializeResponsesJson, serializeResponsesSSE } from './outbound/serial
 import { runChain } from './router/fallback.js';
 import { resolveChain } from './router/resolve.js';
 import { insertRequestLog } from './store/requestLogs.js';
+import { checkBudgets } from './cost/budget.js';
+import { blockingBudget, costForProvider } from './cost/apply.js';
 import type { WireFormat } from './types.js';
 
 export function parseInbound(format: WireFormat, body: Record<string, unknown>): CanonicalRequest {
@@ -48,6 +50,21 @@ export async function handleRequest(
     });
   }
   const logicalModelId = chain[0].logical_model_id;
+
+  const budgetStatuses = checkBudgets(db, logicalModelId);
+  const blocking = blockingBudget(budgetStatuses);
+  if (blocking) {
+    return new Response(
+      JSON.stringify({
+        error: {
+          message: `budget exceeded: spent $${blocking.spent_usd.toFixed(4)} >= limit $${blocking.limit_usd.toFixed(4)}`,
+          type: 'budget_exceeded',
+        },
+      }),
+      { status: 402, headers: { 'content-type': 'application/json' } },
+    );
+  }
+
   const start = Date.now();
 
   // Streaming: only first provider; no fallback after stream starts.
@@ -63,7 +80,7 @@ export async function handleRequest(
             client_format: clientFormat, upstream_format: provider.upstream_format,
             input_tokens: result.usage.input_tokens, output_tokens: result.usage.output_tokens,
             cache_read_tokens: result.usage.cache_read_tokens, cache_write_tokens: result.usage.cache_write_tokens,
-            cost_usd: 0, latency_ms: Date.now() - start, status: 'success', error: null, attempts: 1,
+            cost_usd: costForProvider(db, provider, result.usage), latency_ms: Date.now() - start, status: 'success', error: null, attempts: 1,
           });
         } catch (logErr) {
           console.error('stream success-log write failed', logErr);
@@ -97,7 +114,7 @@ export async function handleRequest(
       client_format: clientFormat, upstream_format: run.outcome.provider.upstream_format,
       input_tokens: run.value.usage.input_tokens, output_tokens: run.value.usage.output_tokens,
       cache_read_tokens: run.value.usage.cache_read_tokens, cache_write_tokens: run.value.usage.cache_write_tokens,
-      cost_usd: 0, latency_ms: latency, status: 'success', error: null, attempts: run.attempts,
+      cost_usd: costForProvider(db, run.outcome.provider, run.value.usage), latency_ms: latency, status: 'success', error: null, attempts: run.attempts,
     });
     return new Response(JSON.stringify(serializeJson(clientFormat, req.model, run.value)), {
       status: 200, headers: { 'content-type': 'application/json' },

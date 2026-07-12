@@ -18,5 +18,9 @@ export async function refreshModelsDev(
 export function getCachedData(db: Database.Database): Record<string, unknown> | null {
   const cached = readModelsDevCache(db);
   if (!cached) return null;
-  return JSON.parse(cached.data) as Record<string, unknown>;
+  try {
+    return JSON.parse(cached.data) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }

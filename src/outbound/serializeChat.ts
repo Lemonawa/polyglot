@@ -1,4 +1,5 @@
 import type { CanonicalResult } from '../canonical/types.js';
+import type { StreamEvent } from './execute.js';
 
 export function serializeChatJson(model: string, result: CanonicalResult): object {
   const prompt = result.usage.input_tokens + result.usage.cache_read_tokens;
@@ -36,19 +37,39 @@ function sse(data: string): string {
 
 export function serializeChatSSE(
   model: string,
-  deltas: AsyncIterable<string>,
+  events: AsyncIterable<StreamEvent>,
 ): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   const id = `chatcmpl-${Date.now()}`;
   const created = Math.floor(Date.now() / 1000);
+  let toolIndex = 0;
   return new ReadableStream({
     async start(controller) {
-      for await (const delta of deltas) {
-        const chunk = {
-          id, object: 'chat.completion.chunk', created, model,
-          choices: [{ index: 0, delta: { content: delta }, finish_reason: null }],
-        };
-        controller.enqueue(encoder.encode(sse(JSON.stringify(chunk))));
+      for await (const ev of events) {
+        if (ev.kind === 'text') {
+          const chunk = {
+            id, object: 'chat.completion.chunk', created, model,
+            choices: [{ index: 0, delta: { content: ev.text }, finish_reason: null }],
+          };
+          controller.enqueue(encoder.encode(sse(JSON.stringify(chunk))));
+        } else {
+          const chunk = {
+            id, object: 'chat.completion.chunk', created, model,
+            choices: [{
+              index: 0,
+              delta: {
+                tool_calls: [{
+                  index: toolIndex++,
+                  id: ev.toolCall.toolCallId,
+                  type: 'function',
+                  function: { name: ev.toolCall.toolName, arguments: ev.toolCall.args },
+                }],
+              },
+              finish_reason: null,
+            }],
+          };
+          controller.enqueue(encoder.encode(sse(JSON.stringify(chunk))));
+        }
       }
       const final = {
         id, object: 'chat.completion.chunk', created, model,

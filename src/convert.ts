@@ -4,7 +4,7 @@ import { parseAnthropic } from './inbound/anthropic.js';
 import { parseChat } from './inbound/chat.js';
 import { parseResponses } from './inbound/responses.js';
 import { buildModel } from './outbound/model.js';
-import { execute, streamExecute, type StreamHandle } from './outbound/execute.js';
+import { execute, streamExecute, type StreamHandle, type StreamEvent } from './outbound/execute.js';
 import { serializeAnthropicJson, serializeAnthropicSSE } from './outbound/serializeAnthropic.js';
 import { serializeChatJson, serializeChatSSE } from './outbound/serializeChat.js';
 import { serializeResponsesJson, serializeResponsesSSE } from './outbound/serializeResponses.js';
@@ -48,11 +48,11 @@ export function serializeJson(format: WireFormat, model: string, result: Canonic
 export function serializeSSE(
   format: WireFormat,
   model: string,
-  deltas: AsyncIterable<string>,
+  events: AsyncIterable<StreamEvent>,
 ): ReadableStream<Uint8Array> {
-  if (format === 'chat') return serializeChatSSE(model, deltas);
-  if (format === 'responses') return serializeResponsesSSE(model, deltas);
-  return serializeAnthropicSSE(model, deltas);
+  if (format === 'chat') return serializeChatSSE(model, events);
+  if (format === 'responses') return serializeResponsesSSE(model, events);
+  return serializeAnthropicSSE(model, events);
 }
 
 export async function handleRequest(

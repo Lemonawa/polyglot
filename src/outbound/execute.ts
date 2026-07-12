@@ -154,15 +154,48 @@ export async function execute(
 // ---------------------------------------------------------------------------
 
 export interface StreamHandle {
-  stream: AsyncIterable<string>;
+  stream: AsyncIterable<StreamEvent>;
   resultPromise: Promise<CanonicalResult>;
 }
+
+/**
+ * Normalized streaming event emitted by streamExecute, mapped from the AI SDK 7
+ * full-part stream (`result.stream`). Text deltas become `{ kind: 'text' }`;
+ * tool-call parts become `{ kind: 'tool-call' }` with args = JSON.stringify(input).
+ * All other part types (reasoning, start/finish, raw, ...) are ignored here —
+ * the SSE serializers only care about text + tool calls.
+ */
+export type StreamEvent =
+  | { kind: 'text'; text: string }
+  | { kind: 'tool-call'; toolCall: CanonicalToolCall };
 
 export function streamExecute(
   model: LanguageModel,
   req: CanonicalRequest,
 ): StreamHandle {
   const result = streamText(buildCallOptions(model, req));
+
+  const stream = (async function* (): AsyncIterable<StreamEvent> {
+    for await (const part of result.stream) {
+      const p = part as { type?: string; text?: unknown; toolCallId?: unknown; toolName?: unknown; input?: unknown };
+      if (p.type === 'text-delta' && typeof p.text === 'string') {
+        yield { kind: 'text', text: p.text };
+      } else if (
+        p.type === 'tool-call' &&
+        typeof p.toolCallId === 'string' &&
+        typeof p.toolName === 'string'
+      ) {
+        yield {
+          kind: 'tool-call',
+          toolCall: {
+            toolCallId: p.toolCallId,
+            toolName: p.toolName,
+            args: JSON.stringify(p.input ?? {}),
+          },
+        };
+      }
+    }
+  })();
 
   const resultPromise = (async (): Promise<CanonicalResult> => {
     const [text, usage, finishReason, meta, toolCalls] = await Promise.all([
@@ -182,5 +215,5 @@ export function streamExecute(
     };
   })();
 
-  return { stream: result.textStream, resultPromise };
+  return { stream, resultPromise };
 }

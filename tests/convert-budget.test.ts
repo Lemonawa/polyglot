@@ -6,7 +6,7 @@ import { createBudget } from '../src/store/budgets.js';
 import { insertRequestLog, listRequestLogs } from '../src/store/requestLogs.js';
 import { handleRequest, type ProviderRunner } from '../src/convert.js';
 import type { CanonicalResult } from '../src/canonical/types.js';
-import type { StreamHandle } from '../src/outbound/execute.js';
+import type { StreamEvent, StreamHandle } from '../src/outbound/execute.js';
 
 function input(over: Partial<ProviderInput>): ProviderInput {
   return { logical_model_id: 1, priority: 0, upstream_format: 'chat', base_url: 'x', api_key: 'k', upstream_model: 'gpt-4o', models_dev_id: null, fallback_status_codes: [], enabled: true, ...over };
@@ -76,10 +76,10 @@ test('streaming cost: fake runner records cost_usd from models.dev price', async
     },
     stream: (_provider, _req) => {
       let done = false;
-      const stream: AsyncIterable<string> = {
+      const stream: AsyncIterable<StreamEvent> = {
         [Symbol.asyncIterator]: () => ({
           next: () => {
-            if (!done) { done = true; return Promise.resolve({ value: 'Hi there', done: false }); }
+            if (!done) { done = true; return Promise.resolve({ value: { kind: 'text', text: 'Hi there' }, done: false }); }
             return Promise.resolve({ value: undefined, done: true });
           },
         }),

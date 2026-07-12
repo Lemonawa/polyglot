@@ -73,7 +73,7 @@ async function collectStream(stream: ReadableStream<Uint8Array>): Promise<string
 }
 
 test('serializeSSE dispatches chat format', async () => {
-  async function* gen() { yield 'hello'; yield ' world'; }
+  async function* gen() { yield { kind: 'text', text: 'hello' } as const; yield { kind: 'text', text: ' world' } as const; }
   const stream = serializeSSE('chat', 'gpt', gen());
   const text = await collectStream(stream);
   expect(text).toContain('data: [DONE]');
@@ -82,7 +82,7 @@ test('serializeSSE dispatches chat format', async () => {
 });
 
 test('serializeSSE dispatches anthropic format', async () => {
-  async function* gen() { yield 'hi'; }
+  async function* gen() { yield { kind: 'text', text: 'hi' } as const; }
   const stream = serializeSSE('anthropic', 'claude', gen());
   const text = await collectStream(stream);
   expect(text).toContain('message_start');
@@ -90,7 +90,7 @@ test('serializeSSE dispatches anthropic format', async () => {
 });
 
 test('serializeSSE dispatches responses format', async () => {
-  async function* gen() { yield 'hello'; }
+  async function* gen() { yield { kind: 'text', text: 'hello' } as const; }
   const stream = serializeSSE('responses', 'o1', gen());
   const text = await collectStream(stream);
   expect(text).toContain('response.created');

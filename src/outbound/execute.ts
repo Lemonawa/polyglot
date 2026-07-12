@@ -4,8 +4,11 @@ import {
   type LanguageModel,
   type LanguageModelCallOptions,
   type ModelMessage,
+  type ToolSet,
+  type ToolChoice,
 } from 'ai';
 import type { CanonicalRequest, CanonicalResult, CanonicalToolCall } from '../canonical/types.js';
+import { toToolChoice, toToolSet } from '../inbound/tools.js';
 import type { TokenUsage } from '../types.js';
 
 // ---------------------------------------------------------------------------
@@ -21,6 +24,8 @@ export interface CallOptions {
   topP?: number;
   stopSequences?: string[];
   reasoning?: LanguageModelCallOptions['reasoning'];
+  tools?: ToolSet;
+  toolChoice?: ToolChoice<ToolSet>;
 }
 
 export function buildCallOptions(
@@ -42,7 +47,42 @@ export function buildCallOptions(
     opts.reasoning = req.reasoning.effort as LanguageModelCallOptions['reasoning'];
   }
 
+  // Forward tool definitions and tool_choice (wire form → AI SDK ToolSet/ToolChoice)
+  const tools = toToolSet(req.tools);
+  if (tools) opts.tools = tools;
+  const toolChoice = toToolChoice(req.tool_choice);
+  if (toolChoice) opts.toolChoice = toolChoice as ToolChoice<ToolSet>;
+
   return opts;
+}
+
+// ---------------------------------------------------------------------------
+// extractToolCalls – map AI SDK toolCalls to CanonicalToolCall[]
+// ---------------------------------------------------------------------------
+
+/**
+ * Map AI SDK 7 tool call elements ({ toolCallId, toolName, input }) to our
+ * CanonicalToolCall shape (args is a JSON string). `input` is a parsed object
+ * (or already a string) from the SDK; we JSON.stringify it for a stable,
+ * serializable args representation the serializers can re-parse per format.
+ *
+ * Robust on null/undefined/non-array input (returns []).
+ */
+export function extractToolCalls(toolCalls: unknown): CanonicalToolCall[] {
+  if (!Array.isArray(toolCalls)) return [];
+  return toolCalls
+    .map((tc): CanonicalToolCall | null => {
+      if (tc == null || typeof tc !== 'object') return null;
+      const t = tc as { toolCallId?: unknown; toolName?: unknown; input?: unknown };
+      if (typeof t.toolCallId !== 'string' || typeof t.toolName !== 'string') return null;
+      // args is always a JSON string (uniform contract for serializers).
+      // AI SDK returns `input` as a parsed object in practice; JSON.stringify
+      // gives back the stable JSON args representation. Serializers re-parse
+      // per wire format (e.g. Anthropic tool_use.input wants the object).
+      const args = JSON.stringify(t.input ?? {});
+      return { toolCallId: t.toolCallId, toolName: t.toolName, args };
+    })
+    .filter((x): x is CanonicalToolCall => x !== null);
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +142,7 @@ export async function execute(
 
   return {
     text: result.text,
-    tool_calls: (result.toolCalls ?? []) as unknown as CanonicalToolCall[],
+    tool_calls: extractToolCalls(result.toolCalls),
     finish_reason: result.finishReason ?? 'stop',
     usage: toUsage(result.usage as AiUsage, result.providerMetadata),
     raw_provider_metadata: result.providerMetadata,
@@ -135,7 +175,7 @@ export function streamExecute(
 
     return {
       text,
-      tool_calls: (toolCalls ?? []) as unknown as CanonicalToolCall[],
+      tool_calls: extractToolCalls(toolCalls),
       finish_reason: finishReason ?? 'stop',
       usage: toUsage(usage as AiUsage, meta),
       raw_provider_metadata: meta,

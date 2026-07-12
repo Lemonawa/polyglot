@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { buildCallOptions, toUsage } from '../../src/outbound/execute.js';
+import { buildCallOptions, toUsage, extractToolCalls } from '../../src/outbound/execute.js';
 import type { CanonicalRequest } from '../../src/canonical/types.js';
 
 // ---------------------------------------------------------------------------
@@ -42,6 +42,56 @@ test('omits undefined optional fields', () => {
   expect(opts.topP).toBeUndefined();
   expect(opts.stopSequences).toBeUndefined();
   expect(opts.reasoning).toBeUndefined();
+  // tools/toolChoice should also be undefined when not provided
+  expect(opts.tools).toBeUndefined();
+  expect(opts.toolChoice).toBeUndefined();
+});
+
+test('buildCallOptions forwards tools and toolChoice', () => {
+  const req: CanonicalRequest = {
+    model: 'm',
+    messages: [{ role: 'user', content: 'hi' }],
+    stream: false,
+    tools: [
+      {
+        type: 'function',
+        function: {
+          name: 'get_weather',
+          description: 'Get current weather',
+          parameters: { type: 'object', properties: { location: { type: 'string' } } },
+        },
+      },
+    ],
+    tool_choice: { type: 'function', function: { name: 'get_weather' } },
+  };
+  const opts = buildCallOptions(fakeModel, req);
+  expect(opts.tools).toBeDefined();
+  expect(opts.tools!.get_weather).toBeDefined();
+  expect(opts.toolChoice).toEqual({ type: 'tool', toolName: 'get_weather' });
+});
+
+// ---------------------------------------------------------------------------
+// extractToolCalls – unit test pure function
+// ---------------------------------------------------------------------------
+
+test('extractToolCalls maps AI SDK shape to CanonicalToolCall[]', () => {
+  // AI SDK v7 toolCalls elements: { toolCallId, toolName, input }
+  // where input is a parsed object
+  const input = [
+    { toolCallId: 'c1', toolName: 'get_weather', input: { location: 'NYC' } },
+    { toolCallId: 'c2', toolName: 'search', input: 'query text' },
+  ];
+  const result = extractToolCalls(input);
+  expect(result).toEqual([
+    { toolCallId: 'c1', toolName: 'get_weather', args: '{"location":"NYC"}' },
+    { toolCallId: 'c2', toolName: 'search', args: '"query text"' },
+  ]);
+});
+
+test('extractToolCalls returns empty array for null/undefined/empty', () => {
+  expect(extractToolCalls(null)).toEqual([]);
+  expect(extractToolCalls(undefined)).toEqual([]);
+  expect(extractToolCalls([])).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------

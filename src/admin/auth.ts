@@ -1,4 +1,4 @@
-import type { MiddlewareHandler } from "hono";
+import type { MiddlewareHandler } from 'hono';
 
 /**
  * Hono middleware that requires a valid admin bearer token.
@@ -10,19 +10,19 @@ export function requireAdmin(token: string): MiddlewareHandler {
   return async (c, next) => {
     // Fail closed: empty configured token denies all access
     if (!token) {
-      return c.text("Unauthorized", 401);
+      return c.text('Unauthorized', 401);
     }
 
-    const authHeader = c.req.header("authorization");
+    const authHeader = c.req.header('authorization');
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return c.text("Unauthorized", 401);
+    if (!authHeader?.startsWith('Bearer ')) {
+      return c.text('Unauthorized', 401);
     }
 
     const providedToken = authHeader.slice(7); // "Bearer ".length
 
     if (providedToken !== token) {
-      return c.text("Unauthorized", 401);
+      return c.text('Unauthorized', 401);
     }
 
     await next();

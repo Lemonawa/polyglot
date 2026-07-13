@@ -42,8 +42,16 @@ test('assistant tool_calls become ToolCallParts', () => {
         role: 'assistant',
         content: '',
         tool_calls: [
-          { id: 'call_1', type: 'function', function: { name: 'get_weather', arguments: '{"loc":"NYC"}' } },
-          { id: 'call_2', type: 'function', function: { name: 'get_time', arguments: '{"tz":"EST"}' } },
+          {
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'get_weather', arguments: '{"loc":"NYC"}' },
+          },
+          {
+            id: 'call_2',
+            type: 'function',
+            function: { name: 'get_time', arguments: '{"tz":"EST"}' },
+          },
         ],
       },
     ],
@@ -81,7 +89,11 @@ test('tool role messages become ToolModelMessage with ToolResultParts', () => {
         role: 'assistant',
         content: '',
         tool_calls: [
-          { id: 'call_1', type: 'function', function: { name: 'get_weather', arguments: '{}' } },
+          {
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'get_weather', arguments: '{}' },
+          },
         ],
       },
       { role: 'tool', tool_call_id: 'call_1', content: '72°F' },
@@ -105,9 +117,7 @@ test('tool role messages become ToolModelMessage with ToolResultParts', () => {
 test('tool message with unknown tool_call_id falls back', () => {
   const req = parseChat({
     model: 'm',
-    messages: [
-      { role: 'tool', tool_call_id: 'unknown_id', content: 'result' },
-    ],
+    messages: [{ role: 'tool', tool_call_id: 'unknown_id', content: 'result' }],
   });
 
   const toolMsg = req.messages[0];

@@ -1,6 +1,13 @@
 import type Database from 'better-sqlite3';
 import { Hono } from 'hono';
-import { requireAdmin } from './auth.js';
+import { checkBudgets } from '../cost/budget.js';
+import { refreshModelsDev } from '../cost/modelsDev.js';
+import {
+  type BudgetInput,
+  createBudget,
+  deleteBudget,
+  listBudgets,
+} from '../store/budgets.js';
 import {
   createLogicalModel,
   deleteLogicalModel,
@@ -10,14 +17,12 @@ import {
   createProvider,
   deleteProvider,
   listProvidersByModelId,
-  updateProvider,
   type ProviderInput,
+  updateProvider,
 } from '../store/providers.js';
-import { createBudget, deleteBudget, listBudgets, type BudgetInput } from '../store/budgets.js';
 import { listRequestLogs } from '../store/requestLogs.js';
-import { checkBudgets } from '../cost/budget.js';
-import { refreshModelsDev } from '../cost/modelsDev.js';
 import type { Provider } from '../types.js';
+import { requireAdmin } from './auth.js';
 
 function providerView(p: Provider) {
   const { api_key: _ignored, ...rest } = p;
@@ -48,7 +53,10 @@ export function createAdminRoutes(db: Database.Database, token: string): Hono {
 
   app.post('/models/:id/providers', async (c) => {
     const logical_model_id = Number(c.req.param('id'));
-    const body = (await c.req.json()) as Omit<ProviderInput, 'logical_model_id'>;
+    const body = (await c.req.json()) as Omit<
+      ProviderInput,
+      'logical_model_id'
+    >;
     const provider = createProvider(db, { ...body, logical_model_id });
     return c.json({ provider: providerView(provider) }, 201);
   });

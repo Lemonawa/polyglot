@@ -1,5 +1,5 @@
-import { jsonSchema, tool } from 'ai';
 import type { ToolChoice, ToolSet } from 'ai';
+import { jsonSchema, tool } from 'ai';
 
 /**
  * Convert an OpenAI-shaped tools array to an AI SDK 7 ToolSet.
@@ -29,7 +29,8 @@ export function toToolSet(tools: unknown): ToolSet | undefined {
     const name = fn.name;
     if (typeof name !== 'string' || !name) continue;
 
-    const description = typeof fn.description === 'string' ? fn.description : undefined;
+    const description =
+      typeof fn.description === 'string' ? fn.description : undefined;
     const parameters = fn.parameters as Record<string, unknown> | undefined;
 
     // The AI SDK 7 Tool type requires inputSchema (a FlexibleSchema), not
@@ -39,7 +40,9 @@ export function toToolSet(tools: unknown): ToolSet | undefined {
       name,
       tool({
         description,
-        inputSchema: parameters ? jsonSchema(parameters) : jsonSchema({ type: 'object', properties: {} }),
+        inputSchema: parameters
+          ? jsonSchema(parameters)
+          : jsonSchema({ type: 'object', properties: {} }),
       }),
     ]);
   }
@@ -57,7 +60,9 @@ export function toToolSet(tools: unknown): ToolSet | undefined {
  *
  * Returns undefined for unrecognised or nullish input.
  */
-export function toToolChoice(choice: unknown): ToolChoice<Record<string, unknown>> | undefined {
+export function toToolChoice(
+  choice: unknown,
+): ToolChoice<Record<string, unknown>> | undefined {
   if (choice == null) return undefined;
 
   if (choice === 'auto' || choice === 'none' || choice === 'required') {
@@ -69,7 +74,9 @@ export function toToolChoice(choice: unknown): ToolChoice<Record<string, unknown
     if (obj.type === 'function') {
       const fn = obj.function as Record<string, unknown> | undefined;
       if (fn != null && typeof fn.name === 'string' && fn.name) {
-        return { type: 'tool', toolName: fn.name } as ToolChoice<Record<string, unknown>>;
+        return { type: 'tool', toolName: fn.name } as ToolChoice<
+          Record<string, unknown>
+        >;
       }
     }
   }

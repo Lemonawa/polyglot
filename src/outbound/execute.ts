@@ -1,13 +1,17 @@
 import {
   generateText,
-  streamText,
   type LanguageModel,
   type LanguageModelCallOptions,
   type ModelMessage,
-  type ToolSet,
+  streamText,
   type ToolChoice,
+  type ToolSet,
 } from 'ai';
-import type { CanonicalRequest, CanonicalResult, CanonicalToolCall } from '../canonical/types.js';
+import type {
+  CanonicalRequest,
+  CanonicalResult,
+  CanonicalToolCall,
+} from '../canonical/types.js';
 import { toToolChoice, toToolSet } from '../inbound/tools.js';
 import type { TokenUsage } from '../types.js';
 
@@ -44,7 +48,8 @@ export function buildCallOptions(
 
   // Map canonical reasoning.effort → AI SDK reasoning string
   if (req.reasoning?.effort) {
-    opts.reasoning = req.reasoning.effort as LanguageModelCallOptions['reasoning'];
+    opts.reasoning = req.reasoning
+      .effort as LanguageModelCallOptions['reasoning'];
   }
 
   // Forward tool definitions and tool_choice (wire form → AI SDK ToolSet/ToolChoice)
@@ -73,8 +78,13 @@ export function extractToolCalls(toolCalls: unknown): CanonicalToolCall[] {
   return toolCalls
     .map((tc): CanonicalToolCall | null => {
       if (tc == null || typeof tc !== 'object') return null;
-      const t = tc as { toolCallId?: unknown; toolName?: unknown; input?: unknown };
-      if (typeof t.toolCallId !== 'string' || typeof t.toolName !== 'string') return null;
+      const t = tc as {
+        toolCallId?: unknown;
+        toolName?: unknown;
+        input?: unknown;
+      };
+      if (typeof t.toolCallId !== 'string' || typeof t.toolName !== 'string')
+        return null;
       // args is always a JSON string (uniform contract for serializers).
       // AI SDK returns `input` as a parsed object in practice; JSON.stringify
       // gives back the stable JSON args representation. Serializers re-parse
@@ -109,17 +119,27 @@ interface AiUsage {
  * expose it there (e.g. some OpenAI-compatible endpoints).
  */
 export function toUsage(usage: AiUsage, meta: unknown): TokenUsage {
-  const cacheRead =
-    usage.inputTokenDetails?.cacheReadTokens ?? 0;
+  const cacheRead = usage.inputTokenDetails?.cacheReadTokens ?? 0;
   const cacheWrite =
     usage.inputTokenDetails?.cacheWriteTokens ??
     (
       meta as
-        | { anthropic?: { cacheCreationInputTokens?: number; usage?: { cache_creation_input_tokens?: number } }; openai?: { usage?: { cacheWriteTokens?: number } } }
+        | {
+            anthropic?: {
+              cacheCreationInputTokens?: number;
+              usage?: { cache_creation_input_tokens?: number };
+            };
+            openai?: { usage?: { cacheWriteTokens?: number } };
+          }
         | undefined
     )?.anthropic?.cacheCreationInputTokens ??
-    (meta as { anthropic?: { usage?: { cache_creation_input_tokens?: number } } } | undefined)?.anthropic?.usage?.cache_creation_input_tokens ??
-    (meta as { openai?: { usage?: { cacheWriteTokens?: number } } } | undefined)?.openai?.usage?.cacheWriteTokens ??
+    (
+      meta as
+        | { anthropic?: { usage?: { cache_creation_input_tokens?: number } } }
+        | undefined
+    )?.anthropic?.usage?.cache_creation_input_tokens ??
+    (meta as { openai?: { usage?: { cacheWriteTokens?: number } } } | undefined)
+      ?.openai?.usage?.cacheWriteTokens ??
     0;
 
   return {
@@ -177,7 +197,13 @@ export function streamExecute(
 
   const stream = (async function* (): AsyncIterable<StreamEvent> {
     for await (const part of result.stream) {
-      const p = part as { type?: string; text?: unknown; toolCallId?: unknown; toolName?: unknown; input?: unknown };
+      const p = part as {
+        type?: string;
+        text?: unknown;
+        toolCallId?: unknown;
+        toolName?: unknown;
+        input?: unknown;
+      };
       if (p.type === 'text-delta' && typeof p.text === 'string') {
         yield { kind: 'text', text: p.text };
       } else if (

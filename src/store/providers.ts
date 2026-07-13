@@ -31,7 +31,10 @@ export function rowToProvider(row: ProviderRow): Provider {
   };
 }
 
-export function createProvider(db: Database.Database, input: ProviderInput): Provider {
+export function createProvider(
+  db: Database.Database,
+  input: ProviderInput,
+): Provider {
   const info = db
     .prepare(
       `INSERT INTO providers
@@ -53,9 +56,14 @@ export function createProvider(db: Database.Database, input: ProviderInput): Pro
   return { id: Number(info.lastInsertRowid), ...input };
 }
 
-export function listProvidersByModelId(db: Database.Database, logicalModelId: number): Provider[] {
+export function listProvidersByModelId(
+  db: Database.Database,
+  logicalModelId: number,
+): Provider[] {
   const rows = db
-    .prepare('SELECT * FROM providers WHERE logical_model_id = ? ORDER BY priority ASC, id ASC')
+    .prepare(
+      'SELECT * FROM providers WHERE logical_model_id = ? ORDER BY priority ASC, id ASC',
+    )
     .all(logicalModelId) as ProviderRow[];
   return rows.map(rowToProvider);
 }
@@ -65,7 +73,16 @@ export function updateProvider(
   id: number,
   patch: Partial<ProviderInput>,
 ): void {
-  const ALLOWED = new Set<string>(['priority','upstream_format','base_url','api_key','upstream_model','models_dev_id','fallback_status_codes','enabled']);
+  const ALLOWED = new Set<string>([
+    'priority',
+    'upstream_format',
+    'base_url',
+    'api_key',
+    'upstream_model',
+    'models_dev_id',
+    'fallback_status_codes',
+    'enabled',
+  ]);
   const fields: string[] = [];
   const values: unknown[] = [];
   for (const [key, value] of Object.entries(patch)) {
@@ -77,7 +94,9 @@ export function updateProvider(
   }
   if (fields.length === 0) return;
   values.push(id);
-  db.prepare(`UPDATE providers SET ${fields.join(', ')} WHERE id = ?`).run(...values);
+  db.prepare(`UPDATE providers SET ${fields.join(', ')} WHERE id = ?`).run(
+    ...values,
+  );
 }
 
 export function deleteProvider(db: Database.Database, id: number): void {

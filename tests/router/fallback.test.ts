@@ -1,19 +1,33 @@
 import { expect, test } from 'vitest';
-import { runChain, shouldFallback, type AttemptOutcome } from '../../src/router/fallback.js';
+import { runChain, shouldFallback } from '../../src/router/fallback.js';
 import type { Provider } from '../../src/types.js';
 
 function provider(over: Partial<Provider> = {}): Provider {
   return {
-    id: 1, logical_model_id: 1, priority: 0, upstream_format: 'chat', base_url: 'x',
-    api_key: 'k', upstream_model: 'm', models_dev_id: null, fallback_status_codes: [],
-    enabled: true, ...over,
+    id: 1,
+    logical_model_id: 1,
+    priority: 0,
+    upstream_format: 'chat',
+    base_url: 'x',
+    api_key: 'k',
+    upstream_model: 'm',
+    models_dev_id: null,
+    fallback_status_codes: [],
+    enabled: true,
+    ...over,
   };
 }
 
 test('shouldFallback: hard failures trigger, plain 4xx does not', () => {
   const p = provider();
   expect(shouldFallback({ provider: p, ok: true })).toBe(false);
-  expect(shouldFallback({ provider: p, ok: false, error: new Error('ECONNREFUSED') })).toBe(true);
+  expect(
+    shouldFallback({
+      provider: p,
+      ok: false,
+      error: new Error('ECONNREFUSED'),
+    }),
+  ).toBe(true);
   expect(shouldFallback({ provider: p, ok: false, status: 500 })).toBe(true);
   expect(shouldFallback({ provider: p, ok: false, status: 429 })).toBe(true);
   expect(shouldFallback({ provider: p, ok: false, status: 400 })).toBe(false);
@@ -66,7 +80,9 @@ test('runChain: exhaust all providers, all fail with fallback errors', async () 
   const b = provider({ id: 2, upstream_model: 'b' });
   const c = provider({ id: 3, upstream_model: 'c' });
   const res = await runChain([a, b, c], async (p) => {
-    const e = new Error(`fail-${p.upstream_model}`) as Error & { status?: number };
+    const e = new Error(`fail-${p.upstream_model}`) as Error & {
+      status?: number;
+    };
     e.status = 500;
     throw e;
   });

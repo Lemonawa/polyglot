@@ -1,6 +1,10 @@
 import { expect, test } from 'vitest';
-import { buildCallOptions, toUsage, extractToolCalls } from '../../src/outbound/execute.js';
 import type { CanonicalRequest } from '../../src/canonical/types.js';
+import {
+  buildCallOptions,
+  extractToolCalls,
+  toUsage,
+} from '../../src/outbound/execute.js';
 
 // ---------------------------------------------------------------------------
 // buildCallOptions – pure mapping, no network
@@ -58,7 +62,10 @@ test('buildCallOptions forwards tools and toolChoice', () => {
         function: {
           name: 'get_weather',
           description: 'Get current weather',
-          parameters: { type: 'object', properties: { location: { type: 'string' } } },
+          parameters: {
+            type: 'object',
+            properties: { location: { type: 'string' } },
+          },
         },
       },
     ],
@@ -66,7 +73,7 @@ test('buildCallOptions forwards tools and toolChoice', () => {
   };
   const opts = buildCallOptions(fakeModel, req);
   expect(opts.tools).toBeDefined();
-  expect(opts.tools!.get_weather).toBeDefined();
+  expect(opts.tools?.get_weather).toBeDefined();
   expect(opts.toolChoice).toEqual({ type: 'tool', toolName: 'get_weather' });
 });
 
@@ -113,7 +120,11 @@ test('toUsage falls back to anthropic usage.cache_creation_input_tokens', () => 
 });
 
 test('toUsage prefers inputTokenDetails.cacheWriteTokens over all metadata', () => {
-  const usage = { inputTokens: 1000, outputTokens: 200, inputTokenDetails: { cacheWriteTokens: 999 } };
+  const usage = {
+    inputTokens: 1000,
+    outputTokens: 200,
+    inputTokenDetails: { cacheWriteTokens: 999 },
+  };
   const meta = { anthropic: { cacheCreationInputTokens: 500 } };
   const result = toUsage(usage, meta);
   expect(result.cache_write_tokens).toBe(999);

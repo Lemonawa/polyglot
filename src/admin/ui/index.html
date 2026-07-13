@@ -36,8 +36,8 @@
 
   <div class="bar">
     <input id="token" type="password" placeholder="Admin Token" size="30" onkeydown="if(event.key==='Enter')saveToken()" />
-    <button class="primary" onclick="saveToken()">连接</button>
-    <button onclick="refreshPrices()">刷新 models.dev 价目</button>
+    <button type="button" class="primary" onclick="saveToken()">连接</button>
+    <button type="button" onclick="refreshPrices()">刷新 models.dev 价目</button>
     <span class="muted" id="conn-status"></span>
   </div>
 
@@ -45,7 +45,7 @@
   <h2>逻辑模型</h2>
   <div class="row">
     <input id="model-name" type="text" placeholder="模型名，如 my-sonnet" onkeydown="if(event.key==='Enter')addModel()" />
-    <button class="primary" onclick="addModel()">新增</button>
+    <button type="button" class="primary" onclick="addModel()">新增</button>
   </div>
   <table id="models"><thead><tr><th>id</th><th>名称</th><th>provider 数</th><th>操作</th></tr></thead><tbody></tbody></table>
   <p class="empty" id="models-empty" style="display:none">尚无模型。先连接（填入 token）再新增。</p>
@@ -68,7 +68,7 @@
       <label class="field">models_dev id<input id="p-mdevid" type="text" placeholder="openai/gpt-4o" style="width:11rem" /></label>
       <label class="field">额外降级码<input id="p-codes" type="text" placeholder="402,403" style="width:7rem" /></label>
       <label class="field">启用<select id="p-enabled"><option value="1">是</option><option value="0">否</option></select></label>
-      <button class="primary" onclick="addProvider()">添加</button>
+      <button type="button" class="primary" onclick="addProvider()">添加</button>
     </div>
   </details>
 
@@ -83,7 +83,7 @@
       <label class="field">上限 $<input id="b-limit" type="number" step="0.01" value="10" style="width:6rem" /></label>
       <label class="field">周期<select id="b-period"><option value="day">day</option><option value="month">month</option><option value="total">total</option></select></label>
       <label class="field">动作<select id="b-action"><option value="block">block（拦截 402）</option><option value="warn">warn（仅告警）</option></select></label>
-      <button class="primary" onclick="addBudget()">添加</button>
+      <button type="button" class="primary" onclick="addBudget()">添加</button>
     </div>
     <p class="muted">说明：global 预算汇总全部请求；logical_model 预算只算该模型；周期 day/month 按 UTC 重置，total 不重置。block 到上限后新请求返回 402。</p>
   </details>
@@ -96,14 +96,14 @@
     let currentModel = null; // { id, name }
     const $ = (id) => document.getElementById(id);
     const tok = () => localStorage.getItem('polyglot_token') || '';
-    const H = () => ({ Authorization: 'Bearer ' + tok(), 'content-type': 'application/json' });
+    const H = () => ({ Authorization: `Bearer ${tok()}`, 'content-type': 'application/json' });
     async function api(path, opts) {
-      return fetch('/admin/api' + path, { ...opts, headers: { ...H(), ...((opts && opts.headers) || {}) } });
+      return fetch(`/admin/api${path}`, { ...opts, headers: { ...H(), ...((opts?.headers) || {}) } });
     }
     async function saveToken() {
       localStorage.setItem('polyglot_token', $('token').value);
       const r = await api('/models');
-      $('conn-status').textContent = r.ok ? '✓ 已连接' : ('✗ ' + r.status);
+      $('conn-status').textContent = r.ok ? '✓ 已连接' : (`✗ ${r.status}`);
       if (r.ok) { loadModels(); loadBudgets(); loadLogs(); }
     }
 
@@ -117,16 +117,16 @@
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${m.id}</td><td><b>${m.name}</b></td><td id="pc-${m.id}">…</td><td><button>管理链</button> <button class="danger">删除模型</button></td>`;
         tr.querySelectorAll('button')[0].onclick = () => selectModel(m);
-        tr.querySelectorAll('button')[1].onclick = async () => { if (confirm('删除模型 ' + m.name + ' 及其 provider 链？')) { await api('/models/' + m.id, { method: 'DELETE' }); if (currentModel && currentModel.id === m.id) { currentModel = null; $('providers').style.display = 'none'; $('provider-add').style.display = 'none'; } loadModels(); } };
+        tr.querySelectorAll('button')[1].onclick = async () => { if (confirm(`删除模型 ${m.name} 及其 provider 链？`)) { await api(`/models/${m.id}`, { method: 'DELETE' }); if (currentModel && currentModel.id === m.id) { currentModel = null; $('providers').style.display = 'none'; $('provider-add').style.display = 'none'; } loadModels(); } };
         tb.appendChild(tr);
-        api('/models/' + m.id + '/providers').then(rr => rr.json()).then(({ providers }) => { const el = $('pc-' + m.id); if (el) el.textContent = providers.length; });
+        api(`/models/${m.id}/providers`).then(rr => rr.json()).then(({ providers }) => { const el = $(`pc-${m.id}`); if (el) el.textContent = providers.length; });
       }
     }
-    async function addModel() {
+    async function _addModel() {
       const name = $('model-name').value.trim();
       if (!name) return;
       const r = await api('/models', { method: 'POST', body: JSON.stringify({ name }) });
-      if (!r.ok) { alert('新增失败：' + r.status); return; }
+      if (!r.ok) { alert(`新增失败：${r.status}`); return; }
       $('model-name').value = '';
       loadModels();
     }
@@ -134,29 +134,29 @@
     // ---- Provider 链 ----
     async function selectModel(m) {
       currentModel = m;
-      $('chain-for').textContent = ' — ' + m.name;
+      $('chain-for').textContent = ` — ${m.name}`;
       $('chain-hint').style.display = 'none';
       $('providers').style.display = '';
       $('provider-add').style.display = '';
       loadProviders();
     }
     function parseCodes(s) {
-      return (s || '').split(',').map(x => x.trim()).filter(Boolean).map(Number).filter(n => !isNaN(n));
+      return (s || '').split(',').map(x => x.trim()).filter(Boolean).map(Number).filter(n => !Number.isNaN(n));
     }
     async function loadProviders() {
       if (!currentModel) return;
-      const r = await api('/models/' + currentModel.id + '/providers');
+      const r = await api(`/models/${currentModel.id}/providers`);
       const { providers } = await r.json();
       const tb = $('providers').querySelector('tbody'); tb.innerHTML = '';
       for (const p of providers) {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${p.priority}</td><td>${p.upstream_format}</td><td>${p.base_url}</td><td>${p.upstream_model}</td><td>${p.models_dev_id || '<span class="muted">—</span>'}</td><td>${(p.fallback_status_codes||[]).join(',') || '<span class="muted">—</span>'}</td><td>${p.enabled ? '<span class="tag ok">是</span>' : '<span class="tag bad">否</span>'}</td><td><button>编辑</button> <button class="danger">删除</button></td>`;
         tr.querySelectorAll('button')[0].onclick = () => editProvider(p);
-        tr.querySelectorAll('button')[1].onclick = async () => { await api('/providers/' + p.id, { method: 'DELETE' }); loadProviders(); loadModels(); };
+        tr.querySelectorAll('button')[1].onclick = async () => { await api(`/providers/${p.id}`, { method: 'DELETE' }); loadProviders(); loadModels(); };
         tb.appendChild(tr);
       }
     }
-    async function addProvider() {
+    async function _addProvider() {
       if (!currentModel) return;
       const body = {
         priority: Number($('p-priority').value) || 0,
@@ -169,25 +169,25 @@
         enabled: $('p-enabled').value === '1',
       };
       if (!body.base_url || !body.api_key || !body.upstream_model) { alert('base_url / api_key / 上游模型 必填'); return; }
-      const r = await api('/models/' + currentModel.id + '/providers', { method: 'POST', body: JSON.stringify(body) });
-      if (!r.ok) { alert('添加失败：' + r.status); return; }
-      ['p-baseurl','p-apikey','p-model','p-mdevid','p-codes'].forEach(id => $(id).value = '');
+      const r = await api(`/models/${currentModel.id}/providers`, { method: 'POST', body: JSON.stringify(body) });
+      if (!r.ok) { alert(`添加失败：${r.status}`); return; }
+      ['p-baseurl','p-apikey','p-model','p-mdevid','p-codes'].forEach((id) => { $(id).value = ''; });
       loadProviders(); loadModels();
     }
     // 编辑：以 prompt 简单修改关键字段（priority/enabled/models_dev_id/fallback_status_codes）
     async function editProvider(p) {
       const patch = {};
-      const np = prompt('顺序 priority（当前 ' + p.priority + '）：', p.priority);
+      const np = prompt(`顺序 priority（当前 ${p.priority}）：`, p.priority);
       if (np !== null) patch.priority = Number(np);
-      const nc = prompt('额外降级状态码，逗号分隔（当前 ' + (p.fallback_status_codes || []).join(',') + '）：', (p.fallback_status_codes || []).join(','));
+      const nc = prompt(`额外降级状态码，逗号分隔（当前 ${(p.fallback_status_codes || []).join(',')}）：`, (p.fallback_status_codes || []).join(','));
       if (nc !== null) patch.fallback_status_codes = parseCodes(nc);
-      const nm = prompt('models_dev id（当前 ' + (p.models_dev_id || '') + '，留空=无）：', p.models_dev_id || '');
+      const nm = prompt(`models_dev id（当前 ${p.models_dev_id || ''}，留空=无）：`, p.models_dev_id || '');
       if (nm !== null) patch.models_dev_id = nm.trim() || null;
-      const ne = prompt('启用？ 1=是 0=否（当前 ' + (p.enabled ? 1 : 0) + '）：', p.enabled ? 1 : 0);
+      const ne = prompt(`启用？ 1=是 0=否（当前 ${p.enabled ? 1 : 0}）：`, p.enabled ? 1 : 0);
       if (ne !== null) patch.enabled = ne === '1';
       if (Object.keys(patch).length === 0) return;
-      const r = await api('/providers/' + p.id, { method: 'PATCH', body: JSON.stringify(patch) });
-      if (!r.ok) { alert('修改失败：' + r.status); return; }
+      const r = await api(`/providers/${p.id}`, { method: 'PATCH', body: JSON.stringify(patch) });
+      if (!r.ok) { alert(`修改失败：${r.status}`); return; }
       loadProviders();
     }
 
@@ -207,11 +207,11 @@
       for (const b of budgets) {
         let status = null;
         if (b.scope === 'logical_model' && b.target_id != null && nameById[b.target_id]) {
-          const sr = await api('/models/' + b.target_id + '/budget-status');
+          const sr = await api(`/models/${b.target_id}/budget-status`);
           if (sr.ok) { const s = (await sr.json()).statuses; status = s.find(x => x.budget && x.budget.id === b.id) || null; }
         }
         const tr = document.createElement('tr');
-        const targetLabel = b.scope === 'global' ? '— 全局 —' : (nameById[b.target_id] || ('#' + b.target_id));
+        const targetLabel = b.scope === 'global' ? '— 全局 —' : (nameById[b.target_id] || (`#${b.target_id}`));
         const spent = status ? status.spent_usd : null;
         let tag = '<span class="muted">—</span>';
         if (status) {
@@ -220,11 +220,11 @@
           tag = `<span class="tag ${cls}">${txt}</span>`;
         }
         tr.innerHTML = `<td>${b.scope}</td><td>${targetLabel}</td><td>${b.limit_usd}</td><td>${b.period}</td><td>${b.action}</td><td>${spent != null ? spent.toFixed(4) : '<span class="muted">—</span>'}</td><td>${tag}</td><td><button class="danger">删除</button></td>`;
-        tr.querySelector('button').onclick = async () => { await api('/budgets/' + b.id, { method: 'DELETE' }); loadBudgets(); };
+        tr.querySelector('button').onclick = async () => { await api(`/budgets/${b.id}`, { method: 'DELETE' }); loadBudgets(); };
         tb.appendChild(tr);
       }
     }
-    async function addBudget() {
+    async function _addBudget() {
       const scope = $('b-scope').value;
       const targetName = $('b-target').value.trim();
       const limit = Number($('b-limit').value);
@@ -236,10 +236,10 @@
       let target_id = null;
       if (scope === 'logical_model') {
         target_id = idByName[targetName];
-        if (target_id == null) { alert('找不到模型：' + targetName + '。请先用准确模型名（区分大小写）。'); return; }
+        if (target_id == null) { alert(`找不到模型：${targetName}。请先用准确模型名（区分大小写）。`); return; }
       }
       const r = await api('/budgets', { method: 'POST', body: JSON.stringify({ scope, target_id, limit_usd: limit, period, action }) });
-      if (!r.ok) { alert('添加失败：' + r.status + ' ' + (await r.text())); return; }
+      if (!r.ok) { alert(`添加失败：${r.status} ${await r.text()}`); return; }
       $('b-target').value = '';
       loadBudgets();
     }
@@ -259,9 +259,9 @@
       }
     }
 
-    async function refreshPrices() {
+    async function _refreshPrices() {
       const r = await api('/models-dev/refresh', { method: 'POST' });
-      alert(r.ok ? 'models.dev 价目已刷新' : '刷新失败：' + r.status + ' ' + (await r.text()));
+      alert(r.ok ? 'models.dev 价目已刷新' : `刷新失败：${r.status} ${await r.text()}`);
     }
 
     // 初始化

@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3';
-import { getCachedData } from './modelsDev.js';
 import type { TokenUsage, UnitPrice } from '../types.js';
+import { getCachedData } from './modelsDev.js';
 
 interface RawCost {
   input?: number;
@@ -27,7 +27,10 @@ function toUnitPrice(cost: RawCost | undefined): UnitPrice {
   };
 }
 
-export function lookupPrice(db: Database.Database, modelsDevId: string): UnitPrice | null {
+export function lookupPrice(
+  db: Database.Database,
+  modelsDevId: string,
+): UnitPrice | null {
   const data = getCachedData(db) as Record<string, RawProvider> | null;
   if (!data) return null;
 

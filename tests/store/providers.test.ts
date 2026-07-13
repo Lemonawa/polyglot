@@ -5,8 +5,8 @@ import {
   createProvider,
   deleteProvider,
   listProvidersByModelId,
-  updateProvider,
   type ProviderInput,
+  updateProvider,
 } from '../../src/store/providers.js';
 
 function setup() {
@@ -33,7 +33,14 @@ function input(over: Partial<ProviderInput> = {}): ProviderInput {
 
 test('create round-trips JSON codes and boolean', () => {
   const { db, model } = setup();
-  const p = createProvider(db, input({ logical_model_id: model.id, fallback_status_codes: [402, 403], enabled: false }));
+  const p = createProvider(
+    db,
+    input({
+      logical_model_id: model.id,
+      fallback_status_codes: [402, 403],
+      enabled: false,
+    }),
+  );
   expect(p.id).toBeGreaterThan(0);
   expect(p.fallback_status_codes).toEqual([402, 403]);
   expect(p.enabled).toBe(false);
@@ -45,10 +52,21 @@ test('create round-trips JSON codes and boolean', () => {
 
 test('list ordered by priority ascending', () => {
   const { db, model } = setup();
-  createProvider(db, input({ logical_model_id: model.id, priority: 2, upstream_model: 'c' }));
-  createProvider(db, input({ logical_model_id: model.id, priority: 0, upstream_model: 'a' }));
-  createProvider(db, input({ logical_model_id: model.id, priority: 1, upstream_model: 'b' }));
-  expect(listProvidersByModelId(db, model.id).map((p) => p.upstream_model)).toEqual(['a', 'b', 'c']);
+  createProvider(
+    db,
+    input({ logical_model_id: model.id, priority: 2, upstream_model: 'c' }),
+  );
+  createProvider(
+    db,
+    input({ logical_model_id: model.id, priority: 0, upstream_model: 'a' }),
+  );
+  createProvider(
+    db,
+    input({ logical_model_id: model.id, priority: 1, upstream_model: 'b' }),
+  );
+  expect(
+    listProvidersByModelId(db, model.id).map((p) => p.upstream_model),
+  ).toEqual(['a', 'b', 'c']);
   db.close();
 });
 
@@ -56,7 +74,7 @@ test('update and delete', () => {
   const { db, model } = setup();
   const p = createProvider(db, input({ logical_model_id: model.id }));
   updateProvider(db, p.id, { priority: 5, enabled: false });
-  let got = listProvidersByModelId(db, model.id)[0];
+  const got = listProvidersByModelId(db, model.id)[0];
   expect(got.priority).toBe(5);
   expect(got.enabled).toBe(false);
   deleteProvider(db, p.id);

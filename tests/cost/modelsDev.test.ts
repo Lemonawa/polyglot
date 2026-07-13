@@ -1,19 +1,26 @@
 import { expect, test } from 'vitest';
-import { migrate, openDb } from '../../src/store/db.js';
 import { getCachedData, refreshModelsDev } from '../../src/cost/modelsDev.js';
+import { migrate, openDb } from '../../src/store/db.js';
 import { saveModelsDevCache } from '../../src/store/modelsDevCache.js';
 
 const sample = {
   anthropic: {
     id: 'anthropic',
     models: {
-      'claude-sonnet-4': { id: 'claude-sonnet-4', cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 }, limit: { context: 200000, output: 64000 } },
+      'claude-sonnet-4': {
+        id: 'claude-sonnet-4',
+        cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
+        limit: { context: 200000, output: 64000 },
+      },
     },
   },
 };
 
 function fakeFetch(): typeof fetch {
-  return (async () => new Response(JSON.stringify(sample), { status: 200 })) as unknown as typeof fetch;
+  return (async () =>
+    new Response(JSON.stringify(sample), {
+      status: 200,
+    })) as unknown as typeof fetch;
 }
 
 test('refresh stores parsed models.dev data', async () => {

@@ -13,10 +13,14 @@ export interface BudgetStatus {
 export function periodStart(period: BudgetPeriod, now: Date): string | null {
   if (period === 'total') return null;
   if (period === 'day') {
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+    return new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    ).toISOString();
   }
   // month
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  return new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+  ).toISOString();
 }
 
 export function spentSince(
@@ -36,7 +40,9 @@ export function spentSince(
   }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
   const row = db
-    .prepare(`SELECT COALESCE(SUM(cost_usd), 0) AS total FROM request_logs ${where}`)
+    .prepare(
+      `SELECT COALESCE(SUM(cost_usd), 0) AS total FROM request_logs ${where}`,
+    )
     .get(...values) as { total: number };
   return row.total;
 }
@@ -52,7 +58,8 @@ export function checkBudgets(
   ];
   return budgets.map((budget) => {
     const since = periodStart(budget.period, now);
-    const scopeModelId = budget.scope === 'logical_model' ? logicalModelId : undefined;
+    const scopeModelId =
+      budget.scope === 'logical_model' ? logicalModelId : undefined;
     const spent = spentSince(db, since, scopeModelId);
     return {
       budget,

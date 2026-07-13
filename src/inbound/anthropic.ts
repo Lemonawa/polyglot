@@ -62,7 +62,9 @@ function flattenToolContent(content: string | TextBlock[]): string {
     .join('\n');
 }
 
-export function parseAnthropic(body: Record<string, unknown>): CanonicalRequest {
+export function parseAnthropic(
+  body: Record<string, unknown>,
+): CanonicalRequest {
   const rawSystem = body.system;
   const system =
     typeof rawSystem === 'string'
@@ -101,7 +103,10 @@ export function parseAnthropic(body: Record<string, unknown>): CanonicalRequest 
         messages.push({ role: 'assistant', content: parts } as ModelMessage);
       } else {
         // No tool_use: flatten as before
-        messages.push({ role: 'assistant', content: flattenText(m.content) } as ModelMessage);
+        messages.push({
+          role: 'assistant',
+          content: flattenText(m.content),
+        } as ModelMessage);
       }
     } else if (m.role === 'user' && Array.isArray(m.content)) {
       // Check for tool_result blocks
@@ -111,7 +116,8 @@ export function parseAnthropic(body: Record<string, unknown>): CanonicalRequest 
           if (block.type === 'tool_result') {
             const tb = block as ToolResultBlock;
             const toolCallId = tb.tool_use_id ?? '';
-            const toolName = toolNameIndex.get(toolCallId) ?? (toolCallId || '');
+            const toolName =
+              toolNameIndex.get(toolCallId) ?? (toolCallId || '');
             const outputContent = flattenToolContent(tb.content ?? '');
             const parts: ToolResultPart[] = [
               {
@@ -130,20 +136,37 @@ export function parseAnthropic(body: Record<string, unknown>): CanonicalRequest 
           // to match Anthropic's approach of tool results being separate messages
         }
       } else {
-        messages.push({ role: 'user', content: flattenText(m.content) } as ModelMessage);
+        messages.push({
+          role: 'user',
+          content: flattenText(m.content),
+        } as ModelMessage);
       }
     } else {
-      messages.push({ role: m.role as 'user' | 'assistant', content: flattenText(m.content) } as ModelMessage);
+      messages.push({
+        role: m.role as 'user' | 'assistant',
+        content: flattenText(m.content),
+      } as ModelMessage);
     }
   }
 
-  const known = new Set(['model', 'system', 'messages', 'max_tokens', 'temperature', 'top_p', 'stop_sequences', 'stream', 'tools', 'tool_choice']);
+  const known = new Set([
+    'model',
+    'system',
+    'messages',
+    'max_tokens',
+    'temperature',
+    'top_p',
+    'stop_sequences',
+    'stream',
+    'tools',
+    'tool_choice',
+  ]);
   const extra: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body)) if (!known.has(k)) extra[k] = v;
 
   return {
     model: String(body.model ?? ''),
-    system: system && system.length ? system : undefined,
+    system: system?.length ? system : undefined,
     messages,
     tools: body.tools as unknown[] | undefined,
     tool_choice: body.tool_choice,

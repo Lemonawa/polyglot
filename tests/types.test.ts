@@ -19,13 +19,30 @@ test('Provider shape compiles and holds expected fields', () => {
 });
 
 test('Budget scope/period/action are constrained', () => {
-  const b: Budget = { id: 1, scope: 'global', target_id: null, limit_usd: 50, period: 'month', action: 'block' };
+  const b: Budget = {
+    id: 1,
+    scope: 'global',
+    target_id: null,
+    limit_usd: 50,
+    period: 'month',
+    action: 'block',
+  };
   expect(b.period).toBe('month');
 });
 
 test('TokenUsage has four token buckets', () => {
-  const u: TokenUsage = { input_tokens: 1, output_tokens: 2, cache_read_tokens: 3, cache_write_tokens: 4 };
-  expect(u.input_tokens + u.output_tokens + u.cache_read_tokens + u.cache_write_tokens).toBe(10);
+  const u: TokenUsage = {
+    input_tokens: 1,
+    output_tokens: 2,
+    cache_read_tokens: 3,
+    cache_write_tokens: 4,
+  };
+  expect(
+    u.input_tokens +
+      u.output_tokens +
+      u.cache_read_tokens +
+      u.cache_write_tokens,
+  ).toBe(10);
 });
 
 test('isWireFormat guards valid formats', () => {

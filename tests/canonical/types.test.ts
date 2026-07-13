@@ -1,5 +1,8 @@
 import { expect, test } from 'vitest';
-import { emptyResult, type CanonicalRequest } from '../../src/canonical/types.js';
+import {
+  type CanonicalRequest,
+  emptyResult,
+} from '../../src/canonical/types.js';
 
 test('CanonicalRequest holds normalized fields', () => {
   const req: CanonicalRequest = {

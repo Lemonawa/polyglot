@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
-import { migrate, openDb } from '../../src/store/db.js';
 import { createAdminRoutes } from '../../src/admin/routes.js';
+import { migrate, openDb } from '../../src/store/db.js';
 
 const AUTH = { Authorization: 'Bearer t', 'content-type': 'application/json' };
 
@@ -12,42 +12,83 @@ function app() {
 
 test('create model, list, add provider, list providers', async () => {
   const { api } = app();
-  const created = await api.request('/models', { method: 'POST', headers: AUTH, body: JSON.stringify({ name: 'my-sonnet' }) });
+  const created = await api.request('/models', {
+    method: 'POST',
+    headers: AUTH,
+    body: JSON.stringify({ name: 'my-sonnet' }),
+  });
   expect(created.status).toBe(201);
-  const { model } = (await created.json()) as { model: { id: number; name: string } };
+  const { model } = (await created.json()) as {
+    model: { id: number; name: string };
+  };
   expect(model.name).toBe('my-sonnet');
 
   const list = await api.request('/models', { headers: AUTH });
   expect(((await list.json()) as { models: unknown[] }).models.length).toBe(1);
 
   const addP = await api.request(`/models/${model.id}/providers`, {
-    method: 'POST', headers: AUTH,
-    body: JSON.stringify({ priority: 0, upstream_format: 'chat', base_url: 'https://x/v1', api_key: 'k', upstream_model: 'gpt-4o', models_dev_id: null, fallback_status_codes: [], enabled: true }),
+    method: 'POST',
+    headers: AUTH,
+    body: JSON.stringify({
+      priority: 0,
+      upstream_format: 'chat',
+      base_url: 'https://x/v1',
+      api_key: 'k',
+      upstream_model: 'gpt-4o',
+      models_dev_id: null,
+      fallback_status_codes: [],
+      enabled: true,
+    }),
   });
   expect(addP.status).toBe(201);
-  const { provider } = (await addP.json()) as { provider: { id: number; logical_model_id: number; api_key?: string } };
+  const { provider } = (await addP.json()) as {
+    provider: { id: number; logical_model_id: number; api_key?: string };
+  };
   expect(provider.logical_model_id).toBe(model.id);
   expect(provider.api_key).toBeUndefined();
 
-  const plist = await api.request(`/models/${model.id}/providers`, { headers: AUTH });
-  const plistBody = (await plist.json()) as { providers: { api_key?: string }[] };
+  const plist = await api.request(`/models/${model.id}/providers`, {
+    headers: AUTH,
+  });
+  const plistBody = (await plist.json()) as {
+    providers: { api_key?: string }[];
+  };
   expect(plistBody.providers.length).toBe(1);
   expect(plistBody.providers[0].api_key).toBeUndefined();
 });
 
 test('patch and delete provider', async () => {
   const { db, api } = app();
-  const { createLogicalModel } = await import('../../src/store/logicalModels.js');
+  const { createLogicalModel } = await import(
+    '../../src/store/logicalModels.js'
+  );
   const m = createLogicalModel(db, 'm');
   const addP = await api.request(`/models/${m.id}/providers`, {
-    method: 'POST', headers: AUTH,
-    body: JSON.stringify({ priority: 0, upstream_format: 'chat', base_url: 'x', api_key: 'k', upstream_model: 'a', models_dev_id: null, fallback_status_codes: [], enabled: true }),
+    method: 'POST',
+    headers: AUTH,
+    body: JSON.stringify({
+      priority: 0,
+      upstream_format: 'chat',
+      base_url: 'x',
+      api_key: 'k',
+      upstream_model: 'a',
+      models_dev_id: null,
+      fallback_status_codes: [],
+      enabled: true,
+    }),
   });
   const { provider } = (await addP.json()) as { provider: { id: number } };
 
-  const patch = await api.request(`/providers/${provider.id}`, { method: 'PATCH', headers: AUTH, body: JSON.stringify({ priority: 9 }) });
+  const patch = await api.request(`/providers/${provider.id}`, {
+    method: 'PATCH',
+    headers: AUTH,
+    body: JSON.stringify({ priority: 9 }),
+  });
   expect(patch.status).toBe(200);
-  const del = await api.request(`/providers/${provider.id}`, { method: 'DELETE', headers: AUTH });
+  const del = await api.request(`/providers/${provider.id}`, {
+    method: 'DELETE',
+    headers: AUTH,
+  });
   expect(del.status).toBe(204);
 });
 

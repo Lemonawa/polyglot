@@ -40,6 +40,11 @@ export function emptyResult(): CanonicalResult {
     text: '',
     tool_calls: [],
     finish_reason: 'stop',
-    usage: { input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0 },
+    usage: {
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+    },
   };
 }

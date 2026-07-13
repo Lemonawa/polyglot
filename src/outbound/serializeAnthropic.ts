@@ -1,11 +1,18 @@
 import type { CanonicalResult } from '../canonical/types.js';
 import type { StreamEvent } from './execute.js';
 
-export function serializeAnthropicJson(model: string, result: CanonicalResult): object {
+export function serializeAnthropicJson(
+  model: string,
+  result: CanonicalResult,
+): object {
   const prompt = result.usage.input_tokens + result.usage.cache_read_tokens;
-  const content: { type: string; text?: string; id?: string; name?: string; input?: unknown }[] = [
-    { type: 'text', text: result.text },
-  ];
+  const content: {
+    type: string;
+    text?: string;
+    id?: string;
+    name?: string;
+    input?: unknown;
+  }[] = [{ type: 'text', text: result.text }];
   for (const tc of result.tool_calls) {
     let input: unknown;
     try {
@@ -13,7 +20,12 @@ export function serializeAnthropicJson(model: string, result: CanonicalResult): 
     } catch {
       input = {};
     }
-    content.push({ type: 'tool_use', id: tc.toolCallId, name: tc.toolName, input });
+    content.push({
+      type: 'tool_use',
+      id: tc.toolCallId,
+      name: tc.toolName,
+      input,
+    });
   }
   const stop_reason =
     result.tool_calls.length > 0
@@ -45,9 +57,17 @@ export function serializeAnthropicSSE(
   return new ReadableStream({
     async start(controller) {
       controller.enqueue(
-        encoder.encode(anthropicEvent('message_start', {
-          message: { id, type: 'message', role: 'assistant', model, content: [] },
-        })),
+        encoder.encode(
+          anthropicEvent('message_start', {
+            message: {
+              id,
+              type: 'message',
+              role: 'assistant',
+              model,
+              content: [],
+            },
+          }),
+        ),
       );
       let blockIdx = 0;
       let textBlockOpen = false;
@@ -55,39 +75,71 @@ export function serializeAnthropicSSE(
         if (ev.kind === 'text') {
           if (!textBlockOpen) {
             controller.enqueue(
-              encoder.encode(anthropicEvent('content_block_start', {
-                index: blockIdx, content_block: { type: 'text', text: '' },
-              })),
+              encoder.encode(
+                anthropicEvent('content_block_start', {
+                  index: blockIdx,
+                  content_block: { type: 'text', text: '' },
+                }),
+              ),
             );
             textBlockOpen = true;
           }
           controller.enqueue(
-            encoder.encode(anthropicEvent('content_block_delta', {
-              index: blockIdx, delta: { type: 'text_delta', text: ev.text },
-            })),
+            encoder.encode(
+              anthropicEvent('content_block_delta', {
+                index: blockIdx,
+                delta: { type: 'text_delta', text: ev.text },
+              }),
+            ),
           );
         } else {
           if (textBlockOpen) {
-            controller.enqueue(encoder.encode(anthropicEvent('content_block_stop', { index: blockIdx })));
+            controller.enqueue(
+              encoder.encode(
+                anthropicEvent('content_block_stop', { index: blockIdx }),
+              ),
+            );
             blockIdx++;
             textBlockOpen = false;
           }
           controller.enqueue(
-            encoder.encode(anthropicEvent('content_block_start', {
-              index: blockIdx, content_block: { type: 'tool_use', id: ev.toolCall.toolCallId, name: ev.toolCall.toolName, input: {} },
-            })),
+            encoder.encode(
+              anthropicEvent('content_block_start', {
+                index: blockIdx,
+                content_block: {
+                  type: 'tool_use',
+                  id: ev.toolCall.toolCallId,
+                  name: ev.toolCall.toolName,
+                  input: {},
+                },
+              }),
+            ),
           );
           controller.enqueue(
-            encoder.encode(anthropicEvent('content_block_delta', {
-              index: blockIdx, delta: { type: 'input_json_delta', partial_json: ev.toolCall.args },
-            })),
+            encoder.encode(
+              anthropicEvent('content_block_delta', {
+                index: blockIdx,
+                delta: {
+                  type: 'input_json_delta',
+                  partial_json: ev.toolCall.args,
+                },
+              }),
+            ),
           );
-          controller.enqueue(encoder.encode(anthropicEvent('content_block_stop', { index: blockIdx })));
+          controller.enqueue(
+            encoder.encode(
+              anthropicEvent('content_block_stop', { index: blockIdx }),
+            ),
+          );
           blockIdx++;
         }
       }
       if (textBlockOpen) {
-        controller.enqueue(encoder.encode(anthropicEvent('content_block_stop', { index: blockIdx })));
+        controller.enqueue(
+          encoder.encode(
+            anthropicEvent('content_block_stop', { index: blockIdx }),
+          ),
+        );
       }
       controller.enqueue(encoder.encode(anthropicEvent('message_stop', {})));
       controller.close();

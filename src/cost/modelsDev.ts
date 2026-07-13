@@ -1,5 +1,8 @@
 import type Database from 'better-sqlite3';
-import { readModelsDevCache, saveModelsDevCache } from '../store/modelsDevCache.js';
+import {
+  readModelsDevCache,
+  saveModelsDevCache,
+} from '../store/modelsDevCache.js';
 
 const MODELS_DEV_URL = 'https://models.dev/api.json';
 
@@ -15,7 +18,9 @@ export async function refreshModelsDev(
   saveModelsDevCache(db, text, now());
 }
 
-export function getCachedData(db: Database.Database): Record<string, unknown> | null {
+export function getCachedData(
+  db: Database.Database,
+): Record<string, unknown> | null {
   const cached = readModelsDevCache(db);
   if (!cached) return null;
   try {

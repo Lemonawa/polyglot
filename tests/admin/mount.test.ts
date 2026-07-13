@@ -1,7 +1,7 @@
-import { expect, test } from 'vitest';
 import { Hono } from 'hono';
-import { migrate, openDb } from '../../src/store/db.js';
+import { expect, test } from 'vitest';
 import { mountAdmin } from '../../src/admin/mount.js';
+import { migrate, openDb } from '../../src/store/db.js';
 
 function app() {
   const db = openDb(':memory:');
@@ -21,6 +21,8 @@ test('GET /admin serves html without token', async () => {
 test('admin api under /admin/api requires token', async () => {
   const unauth = await app().request('/admin/api/models');
   expect(unauth.status).toBe(401);
-  const ok = await app().request('/admin/api/models', { headers: { Authorization: 'Bearer t' } });
+  const ok = await app().request('/admin/api/models', {
+    headers: { Authorization: 'Bearer t' },
+  });
   expect(ok.status).toBe(200);
 });

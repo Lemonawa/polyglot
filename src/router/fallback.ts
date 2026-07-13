@@ -1,5 +1,5 @@
-import type { Provider } from '../types.js';
 import { extractStatus } from '../outbound/errors.js';
+import type { Provider } from '../types.js';
 
 export interface AttemptOutcome {
   provider: Provider;
@@ -30,7 +30,11 @@ export async function runChain<T>(
 ): Promise<RunResult<T>> {
   if (chain.length === 0) {
     return {
-      outcome: { provider: undefined as unknown as Provider, ok: false, error: new Error('empty chain') },
+      outcome: {
+        provider: undefined as unknown as Provider,
+        ok: false,
+        error: new Error('empty chain'),
+      },
       attempts: 0,
     };
   }

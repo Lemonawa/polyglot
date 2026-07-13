@@ -42,13 +42,19 @@ export function parseChat(body: Record<string, unknown>): CanonicalRequest {
   const rawMessages = (body.messages as ChatMessage[] | undefined) ?? [];
   const toolNameIndex = buildToolNameIndex(rawMessages);
 
-  const systemParts = rawMessages.filter((m) => m.role === 'system').map((m) => m.content);
+  const systemParts = rawMessages
+    .filter((m) => m.role === 'system')
+    .map((m) => m.content);
   const messages: ModelMessage[] = [];
 
   for (const m of rawMessages) {
     if (m.role === 'system') continue;
 
-    if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
+    if (
+      m.role === 'assistant' &&
+      Array.isArray(m.tool_calls) &&
+      m.tool_calls.length > 0
+    ) {
       // Convert assistant tool_calls to ToolCallParts; include text if present
       const parts: Array<ToolCallPart | { type: 'text'; text: string }> = [];
       if (m.content) {
@@ -74,18 +80,32 @@ export function parseChat(body: Record<string, unknown>): CanonicalRequest {
           toolName,
           output: {
             type: 'text',
-            value: typeof m.content === 'string' ? m.content : String(m.content ?? ''),
+            value:
+              typeof m.content === 'string'
+                ? m.content
+                : String(m.content ?? ''),
           },
         } satisfies ToolResultPart,
       ];
       messages.push({ role: 'tool', content: parts } as ModelMessage);
     } else {
-      messages.push({ role: m.role as 'user' | 'assistant', content: m.content ?? '' } as ModelMessage);
+      messages.push({
+        role: m.role as 'user' | 'assistant',
+        content: m.content ?? '',
+      } as ModelMessage);
     }
   }
 
   const known = new Set([
-    'model', 'messages', 'temperature', 'max_tokens', 'top_p', 'stop', 'stream', 'tools', 'tool_choice',
+    'model',
+    'messages',
+    'temperature',
+    'max_tokens',
+    'top_p',
+    'stop',
+    'stream',
+    'tools',
+    'tool_choice',
   ]);
   const extra: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(body)) if (!known.has(k)) extra[k] = v;

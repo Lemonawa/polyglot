@@ -21,17 +21,17 @@ Polyglot 是为「一个人用」设计的 AI 网关,刻意不堆多租户、令
 
 ```bash
 git clone <repo> polyglot && cd polyglot
-npm install        # Node ≥ 22
+pnpm install      # Node ≥ 22,需 pnpm
 ```
 
 ### 2. 启动
 
 ```bash
 # 开发(热重载)
-npm run dev
+pnpm dev
 
 # 生产
-npm run build && npm start
+pnpm build && pnpm start
 ```
 
 默认监听 `:8787`,数据库文件 `polyglot.sqlite`。环境变量:
@@ -47,7 +47,7 @@ npm run build && npm start
 **A. Web 管理台**(推荐):设 `ADMIN_TOKEN` 启动后访问 `/admin`,填 token 连接,即可在网页上增删改查模型链、provider、预算。
 
 ```bash
-ADMIN_TOKEN=your-secret npm run dev
+ADMIN_TOKEN=your-secret pnpm dev
 # 浏览器打开 http://localhost:8787/admin
 ```
 
@@ -184,10 +184,10 @@ docs/
 ## 开发
 
 ```bash
-npm test           # vitest,全量
-npm run typecheck  # tsc --noEmit
-npm run build      # tsc + 拷贝 admin UI
-npm run lint       # biome
+pnpm test           # vitest,全量
+pnpm typecheck      # tsc --noEmit
+pnpm build          # tsc + 拷贝 admin UI
+pnpm lint           # biome
 ```
 
 ## 技术栈
@@ -197,7 +197,7 @@ npm run lint       # biome
 - [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) 存储
 - [Vercel AI SDK 7](https://ai-sdk.dev/) (LanguageModelV2) 做格式适配 + 流式解析
 - [models.dev](https://models.dev) 官方价目
-- vitest 测试、biome lint
+- [pnpm](https://pnpm.io/) 包管理、vitest 测试、biome lint
 
 ## 许可
 

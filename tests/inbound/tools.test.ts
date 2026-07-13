@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { toToolSet, toToolChoice } from '../../src/inbound/tools.js';
+import { toToolChoice, toToolSet } from '../../src/inbound/tools.js';
 
 describe('toToolSet', () => {
   test('converts OpenAI-shaped tools array to ToolSet', () => {
@@ -37,14 +37,16 @@ describe('toToolSet', () => {
     const result = toToolSet(tools);
 
     expect(result).toBeDefined();
-    expect(Object.keys(result!)).toEqual(['get_weather', 'get_time']);
+    expect(Object.keys(result)).toEqual(['get_weather', 'get_time']);
 
     // Each tool has description and inputSchema (jsonSchema-wrapped), no execute
-    const weather = result!['get_weather'];
+    const weather = result.get_weather;
     expect(weather.description).toBe('Get current weather for a city');
     expect(weather.inputSchema).toBeDefined();
     // jsonSchema wraps the schema
-    const weatherSchema = weather.inputSchema as { jsonSchema: Record<string, unknown> };
+    const weatherSchema = weather.inputSchema as {
+      jsonSchema: Record<string, unknown>;
+    };
     expect(weatherSchema).toHaveProperty('jsonSchema');
     expect(weatherSchema.jsonSchema).toMatchObject({
       type: 'object',
@@ -53,10 +55,12 @@ describe('toToolSet', () => {
     // No execute on the tool
     expect(weather).not.toHaveProperty('execute');
 
-    const time = result!['get_time'];
+    const time = result?.get_time;
     expect(time.description).toBe('Get current time for a timezone');
     expect(time.inputSchema).toBeDefined();
-    const timeSchema = time.inputSchema as { jsonSchema: Record<string, unknown> };
+    const timeSchema = time.inputSchema as {
+      jsonSchema: Record<string, unknown>;
+    };
     expect(timeSchema).toHaveProperty('jsonSchema');
     expect(timeSchema.jsonSchema).toMatchObject({
       type: 'object',
@@ -77,7 +81,13 @@ describe('toToolSet', () => {
 
   test('skips malformed tools (missing name)', () => {
     const tools = [
-      { type: 'function', function: { name: 'valid_tool', parameters: { type: 'object', properties: {} } } },
+      {
+        type: 'function',
+        function: {
+          name: 'valid_tool',
+          parameters: { type: 'object', properties: {} },
+        },
+      },
       { type: 'function', function: { description: 'no name here' } },
       { type: 'function' },
       {},
@@ -86,8 +96,8 @@ describe('toToolSet', () => {
 
     const result = toToolSet(tools);
     expect(result).toBeDefined();
-    expect(Object.keys(result!)).toEqual(['valid_tool']);
-    expect(result!['valid_tool'].description).toBeUndefined();
+    expect(Object.keys(result)).toEqual(['valid_tool']);
+    expect(result.valid_tool.description).toBeUndefined();
   });
 
   test('handles tools without description', () => {
@@ -103,7 +113,7 @@ describe('toToolSet', () => {
 
     const result = toToolSet(tools);
     expect(result).toBeDefined();
-    expect(result!['bare_tool'].description).toBeUndefined();
+    expect(result?.bare_tool.description).toBeUndefined();
   });
 
   test('handles empty tools array', () => {
@@ -125,7 +135,10 @@ describe('toToolChoice', () => {
   });
 
   test('maps named tool from OpenAI shape', () => {
-    const result = toToolChoice({ type: 'function', function: { name: 'get_weather' } });
+    const result = toToolChoice({
+      type: 'function',
+      function: { name: 'get_weather' },
+    });
     expect(result).toEqual({ type: 'tool', toolName: 'get_weather' });
   });
 

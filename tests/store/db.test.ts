@@ -20,7 +20,9 @@ test('migrate creates all five tables and is idempotent', () => {
 
 test('foreign keys are enabled', () => {
   const db = openDb(':memory:');
-  const fk = db.prepare('PRAGMA foreign_keys').get() as { foreign_keys: number };
+  const fk = db.prepare('PRAGMA foreign_keys').get() as {
+    foreign_keys: number;
+  };
   expect(fk.foreign_keys).toBe(1);
   db.close();
 });

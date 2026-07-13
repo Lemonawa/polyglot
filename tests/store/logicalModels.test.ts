@@ -29,7 +29,11 @@ test('list and delete', () => {
   const db = freshDb();
   createLogicalModel(db, 'a');
   const b = createLogicalModel(db, 'b');
-  expect(listLogicalModels(db).map((m) => m.name).sort()).toEqual(['a', 'b']);
+  expect(
+    listLogicalModels(db)
+      .map((m) => m.name)
+      .sort(),
+  ).toEqual(['a', 'b']);
   deleteLogicalModel(db, b.id);
   expect(listLogicalModels(db).map((m) => m.name)).toEqual(['a']);
   db.close();

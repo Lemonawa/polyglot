@@ -1,8 +1,8 @@
 import { expect, test } from 'vitest';
+import type { StreamEvent } from '../../src/outbound/execute.js';
+import { serializeAnthropicSSE } from '../../src/outbound/serializeAnthropic.js';
 import { serializeChatSSE } from '../../src/outbound/serializeChat.js';
 import { serializeResponsesSSE } from '../../src/outbound/serializeResponses.js';
-import { serializeAnthropicSSE } from '../../src/outbound/serializeAnthropic.js';
-import type { StreamEvent } from '../../src/outbound/execute.js';
 
 async function* textDeltas(): AsyncIterable<StreamEvent> {
   yield { kind: 'text', text: 'Hel' };
@@ -13,7 +13,11 @@ async function* withTool(): AsyncIterable<StreamEvent> {
   yield { kind: 'text', text: 'Let me check.' };
   yield {
     kind: 'tool-call',
-    toolCall: { toolCallId: 'call_1', toolName: 'get_weather', args: '{"location":"NYC"}' },
+    toolCall: {
+      toolCallId: 'call_1',
+      toolName: 'get_weather',
+      args: '{"location":"NYC"}',
+    },
   };
 }
 

@@ -18,7 +18,10 @@ test('reads top-level system string and messages', () => {
 test('flattens system content-block array and text content blocks', () => {
   const req = parseAnthropic({
     model: 'm',
-    system: [{ type: 'text', text: 'line1' }, { type: 'text', text: 'line2' }],
+    system: [
+      { type: 'text', text: 'line1' },
+      { type: 'text', text: 'line2' },
+    ],
     max_tokens: 10,
     messages: [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
   });
@@ -103,14 +106,16 @@ test('non-text content blocks in messages are ignored', () => {
   const req = parseAnthropic({
     model: 'm',
     max_tokens: 100,
-    messages: [{
-      role: 'user',
-      content: [
-        { type: 'text', text: 'hello' },
-        { type: 'image', source: { type: 'base64', data: 'abc' } },
-        { type: 'text', text: 'world' },
-      ],
-    }],
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'hello' },
+          { type: 'image', source: { type: 'base64', data: 'abc' } },
+          { type: 'text', text: 'world' },
+        ],
+      },
+    ],
   });
   expect(req.messages).toEqual([{ role: 'user', content: 'hello\nworld' }]);
 });
@@ -139,7 +144,12 @@ test('assistant tool_use blocks become ToolCallParts', () => {
         role: 'assistant',
         content: [
           { type: 'text', text: 'Let me check.' },
-          { type: 'tool_use', id: 'tu_1', name: 'get_weather', input: { loc: 'NYC' } },
+          {
+            type: 'tool_use',
+            id: 'tu_1',
+            name: 'get_weather',
+            input: { loc: 'NYC' },
+          },
         ],
       },
     ],
@@ -174,7 +184,12 @@ test('user tool_result blocks become ToolModelMessage with ToolResultParts', () 
       {
         role: 'assistant',
         content: [
-          { type: 'tool_use', id: 'tu_1', name: 'get_weather', input: { loc: 'NYC' } },
+          {
+            type: 'tool_use',
+            id: 'tu_1',
+            name: 'get_weather',
+            input: { loc: 'NYC' },
+          },
         ],
       },
       {
@@ -229,7 +244,12 @@ test('tool_result with content block array joins text', () => {
       {
         role: 'assistant',
         content: [
-          { type: 'tool_use', id: 'tu_1', name: 'get_weather', input: { loc: 'NYC' } },
+          {
+            type: 'tool_use',
+            id: 'tu_1',
+            name: 'get_weather',
+            input: { loc: 'NYC' },
+          },
         ],
       },
       {

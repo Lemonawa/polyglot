@@ -7,7 +7,11 @@ import { createAdminRoutes } from './routes.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-export function mountAdmin(app: Hono, db: Database.Database, token: string): void {
+export function mountAdmin(
+  app: Hono,
+  db: Database.Database,
+  token: string,
+): void {
   const html = readFileSync(join(__dirname, 'ui', 'index.html'), 'utf8');
   app.get('/admin', (c) => c.html(html));
   app.route('/admin/api', createAdminRoutes(db, token));

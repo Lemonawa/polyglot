@@ -41,7 +41,12 @@ test('function_call in assistant content becomes ToolCallPart', () => {
         role: 'assistant',
         content: [
           { type: 'output_text', text: 'Sure.' },
-          { type: 'function_call', id: 'fc_1', name: 'get_weather', arguments: '{"loc":"NYC"}' },
+          {
+            type: 'function_call',
+            id: 'fc_1',
+            name: 'get_weather',
+            arguments: '{"loc":"NYC"}',
+          },
         ],
       },
     ],
@@ -67,7 +72,12 @@ test('standalone function_call item becomes ToolCallPart in assistant message', 
     model: 'm',
     input: [
       { role: 'user', content: 'weather?' },
-      { type: 'function_call', id: 'fc_1', name: 'get_weather', arguments: '{"loc":"NYC"}' },
+      {
+        type: 'function_call',
+        id: 'fc_1',
+        name: 'get_weather',
+        arguments: '{"loc":"NYC"}',
+      },
     ],
   });
 
@@ -89,7 +99,12 @@ test('function_call_output becomes ToolModelMessage with ToolResultPart', () => 
     model: 'm',
     input: [
       { role: 'user', content: 'weather?' },
-      { type: 'function_call', id: 'fc_1', name: 'get_weather', arguments: '{}' },
+      {
+        type: 'function_call',
+        id: 'fc_1',
+        name: 'get_weather',
+        arguments: '{}',
+      },
       { type: 'function_call_output', call_id: 'fc_1', output: '72°F' },
     ],
   });

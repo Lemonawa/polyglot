@@ -19,7 +19,7 @@ importers:
         version: 4.0.3
       '@hono/node-server':
         specifier: ^2.0.8
-        version: 2.0.8(hono@4.12.30)
+        version: 2.0.8(hono@4.12.34)
       ai:
         specifier: ^7.0.22
         version: 7.0.22(zod@4.4.3)
@@ -27,8 +27,8 @@ importers:
         specifier: ^12.11.1
         version: 12.11.1
       hono:
-        specifier: ^4.12.30
-        version: 4.12.30
+        specifier: ^4.12.34
+        version: 4.12.34
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -694,8 +694,8 @@ packages:
   github-from-package@0.0.0:
     resolution: {integrity: sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw==}
 
-  hono@4.12.30:
-    resolution: {integrity: sha512-emn+JoJjrN9YTpRDS5it/UI2SO9BAE37T6I3d963RxcZ81G9A4pr2SZTEiiaiKbzx+NKRg5BZ89fCL7gCJCUog==}
+  hono@4.12.34:
+    resolution: {integrity: sha512-GqXJqY/xJkJmuloTrnV1ZEXG3fqte+VjkUqoRNZXcrUidiUOP4fMSIHHY4tsqZBK++kVyWmt/AAfSUuy57/eSA==}
     engines: {node: '>=16.9.0'}
 
   ieee754@1.2.1:
@@ -1187,9 +1187,9 @@ snapshots:
   '@esbuild/win32-x64@0.28.1':
     optional: true
 
-  '@hono/node-server@2.0.8(hono@4.12.30)':
+  '@hono/node-server@2.0.8(hono@4.12.34)':
     dependencies:
-      hono: 4.12.30
+      hono: 4.12.34
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
@@ -1485,7 +1485,7 @@ snapshots:
 
   github-from-package@0.0.0: {}
 
-  hono@4.12.30: {}
+  hono@4.12.34: {}
 
   ieee754@1.2.1: {}
 
